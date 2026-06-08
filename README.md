@@ -1,1 +1,26 @@
-This project contains files associated with ways and code to improve the exporting process of Carrier's Hourly Analysis Program .
+# Carrier Hourly Analysis Export Improvement
+
+## Overview
+This project contains files and code designed to improve the exporting process of Carrier's Hourly Analysis Program.
+
+## Tutorial
+
+### Running the Executable
+1. Open the project folder.
+2. Navigate to the `dist` (distribution) folder.
+3. Run the executable file located inside.
+
+## Project Structure
+```text
+project-folder/
+│── dist/        # Executable files
+│── src/         # Source code
+│── README.md    # Project documentation
+```
+
+## Purpose
+The goal of this project is to streamline and improve the export workflow for Carrier's Hourly Analysis Program.
+
+## Notes
+- Ensure all required dependencies are installed if running from source.
+- Use the executable in the `dist` folder for the simplest setup.

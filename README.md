@@ -27,6 +27,7 @@ The goal of this project is to streamline and improve the export workflow for Ca
 
 ## Known Limitations
 - Page numbers at bottom of pages do not match actual page number
+- Have not performed extensive bug testing including trying different, unrelated PDFs.
 - Assumes standard HAP export formatting
 - Only tested with HAP 6.4
 - Pages without recognizable headers may not classify correctly

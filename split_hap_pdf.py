@@ -172,13 +172,17 @@ def split_hap_pdf(pdf_path_str: str) -> None:
 
 if __name__ == "__main__":
 
-    # Drag-and-drop support
-    if len(sys.argv) > 1:
-        input_pdf = sys.argv[1]
+    try:
+        # Drag-and-drop support
+        if len(sys.argv) > 1:
+            input_pdf = sys.argv[1]
 
-    else:
-        input_pdf = input(
-            "Enter path to HAP PDF (or drag file here): "
-        ).strip().strip('"')
+        else:
+            input_pdf = input(
+                "Enter path to HAP PDF (or drag file here): "
+            ).strip().strip('"')
 
-    split_hap_pdf(input_pdf)
+        split_hap_pdf(input_pdf)
+
+    finally:
+        input("\nPress Enter to close...")

@@ -22,6 +22,9 @@ REPORT_TYPE_KEYWORDS: dict[str, str] = {
 def detect_report_type(text: str) -> str | None:
     """
     Determine which report type a page belongs to.
+
+    Returns:
+        None if no report type is detected, otherwise returns the report type key.
     """
     text_lower = text.lower()
 
@@ -85,15 +88,16 @@ def split_hap_pdf(pdf_path_str: str) -> None:
         try:
             text: str = page.extract_text()
 
-            #TODO: Remove
-            print(repr(text))
+            #  Print the text for debugging purposes
+            #  print(repr(text))
+
             if not text:
                 text = ""
 
             # Only inspect first chunk of text for speed
-            header_text = text[:2000]
+            header_text = text[:200]
 
-            detected_type = detect_report_type(header_text)
+            detected_type: str | None = detect_report_type(header_text)
 
             # If we found a report type, update current section
             if detected_type:
@@ -103,6 +107,7 @@ def split_hap_pdf(pdf_path_str: str) -> None:
             if current_report_type:
                 writers[current_report_type].add_page(page)
 
+                # Note: "{page_num:>3}" formats page number right-aligned with width of 3 (e.g. "  1", " 10", "100")
                 print(
                     f"Page {page_num:>3} → "
                     f"{current_report_type.replace('_', ' ').title()}"
@@ -117,9 +122,10 @@ def split_hap_pdf(pdf_path_str: str) -> None:
 
     # Create output folder
     output_dir = pdf_path.parent / "HAP Exports"
+    # Note: exist_ok=True allows the directory to be created if it doesn't exist and does nothing if it already exists, preventing errors.
     output_dir.mkdir(exist_ok=True)
 
-    output_files = {
+    output_files: dict[str, Path] = {
         "system_sizing":
             output_dir / f"{pdf_path.stem}_SystemSizingSummary.pdf",
 
@@ -136,21 +142,24 @@ def split_hap_pdf(pdf_path_str: str) -> None:
     # Save PDFs
     for report_type, writer in writers.items():
         if len(writer.pages) > 0:
-            output_file = output_files[report_type]
+            output_file: Path = output_files[report_type]
 
-            with open(output_file, "wb") as f:
-                writer.write(f)
+            # Note: "wb" (write binary) mode is required for writing binary PDF files.
+            # Note: with open() is used to ensure the file is properly closed after writing. 
+            with open(output_file, "wb") as file:
+                writer.write(file)
 
             print(f"Saved: {output_file.name}")
 
-    # Log unknown pages
+    # Log unknown pages. Not properly tested.
     if unknown_pages:
+        # Note: "w" (write) mode is used for text files.
         log_file = output_dir / "unknown_pages.txt"
 
-        with open(log_file, "w") as f:
-            f.write("Pages not classified:\n")
-            for page in unknown_pages:
-                f.write(f"{page}\n")
+        with open(log_file, "w") as file:
+            file.write("Pages not classified:\n")
+            for unknown_page_num in unknown_pages:
+                file.write(f"{unknown_page_num}\n")
 
         print(
             f"\nWARNING: {len(unknown_pages)} page(s) "

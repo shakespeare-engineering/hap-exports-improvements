@@ -1,3 +1,4 @@
+from ast import keyword
 from pathlib import Path
 from pypdf import PdfReader, PdfWriter
 import sys
@@ -6,10 +7,11 @@ import sys
 # ==========================================================
 # HAP PDF Splitter
 # Splits HAP load reports into separate PDFs by report type
+# Supports file drag-and-drop
 # ==========================================================
 
-# Keywords used to classify pages
-REPORT_TYPES = {
+# Keywords Dictionary used to classify pages.  Key is report type, value is text to search for in page header.
+REPORT_TYPE_KEYWORDS: dict[str, str] = {
     "system_sizing": "Air System Sizing Summary",
     "zone_sizing": "Zone Sizing Summary",
     "ventilation_sizing": "Ventilation Sizing Summary",
@@ -17,21 +19,44 @@ REPORT_TYPES = {
 }
 
 
-def detect_report_type(text):
+def detect_report_type(text: str) -> str | None:
     """
     Determine which report type a page belongs to.
     """
     text_lower = text.lower()
 
-    for report_name, keyword in REPORT_TYPES.items():
-        if keyword.lower() in text_lower:
-            return report_name
+    for report_type, search_text in REPORT_TYPE_KEYWORDS.items():
+        if search_text.lower() in text_lower:
+            return report_type
 
     return None
 
 
-def split_hap_pdf(pdf_path):
-    pdf_path = Path(pdf_path)
+def split_hap_pdf(pdf_path_str: str) -> None:
+    """
+    Split a HAP summary PDF into separate PDFs by report type.
+
+    Reads a HAP-generated PDF and classifies pages into:
+    - Air System Sizing Summary
+    - Zone Sizing Summary
+    - Ventilation Sizing Summary
+    - Air System Heat Balance Summary
+
+    Each report type is exported to its own PDF file
+    inside the output directory.
+
+    Multi-page report sections are supported by tracking
+    the current detected report type across pages.
+
+    Args:
+        pdf_path_str (str):
+            File path to the HAP PDF to process.
+
+    Returns:
+        None
+    """
+
+    pdf_path: Path = Path(pdf_path_str)
 
     if not pdf_path.exists():
         print(f"ERROR: File not found: {pdf_path}")
@@ -39,10 +64,10 @@ def split_hap_pdf(pdf_path):
 
     print(f"\nProcessing: {pdf_path.name}")
 
-    reader = PdfReader(str(pdf_path))
+    reader: PdfReader = PdfReader(pdf_path_str)
 
     # Create PDF writers
-    writers = {
+    writers: dict[str, PdfWriter] = {
         "system_sizing": PdfWriter(),
         "zone_sizing": PdfWriter(),
         "ventilation_sizing": PdfWriter(),
@@ -50,15 +75,18 @@ def split_hap_pdf(pdf_path):
     }
 
     # Track unknown pages
-    unknown_pages = []
+    unknown_pages: list[int] = []
 
     # Used for multi-page reports
-    current_report_type = None
+    current_report_type: str | None = None
 
+    # enumerate makes it easy to track page numbers for logging.  start=1 makes page numbers 1-based instead of 0-based.
     for page_num, page in enumerate(reader.pages, start=1):
         try:
-            text = page.extract_text()
+            text: str = page.extract_text()
 
+            #TODO: Remove
+            print(repr(text))
             if not text:
                 text = ""
 

@@ -23,3 +23,5 @@ class Coil:
 
     leaving_db_f: float | None = None
     leaving_wb_f: float | None = None
+
+    cfm_per_ton: float | None = None

@@ -47,3 +47,27 @@ class AirSystem:
 
     def add_zone(self, zone: Zone) -> None:
         self.zones.append(zone)
+
+    def __str__(self) -> str:
+        """
+        Human-readable summary of the air system.
+        Only prints populated fields.
+        """
+
+        lines: list[str] = [f"Air System: {self.name}"]
+
+        if self.cooling_tons is not None:
+            lines.append(f"Cooling Tons: {self.cooling_tons}")
+
+        if self.supply_airflow_cfm is not None:
+            lines.append(f"Supply Airflow: {self.supply_airflow_cfm} CFM")
+
+        if self.fan_bhp is not None:
+            lines.append(f"Fan BHP: {self.fan_bhp}")
+
+        if self.floor_area_sqft is not None:
+            lines.append(f"Floor Area: {self.floor_area_sqft} sqft")
+
+        lines.append(f"Zones: {len(self.zones)}")
+
+        return "\n".join(lines)

@@ -39,3 +39,24 @@ class Zone:
 
     def add_space(self, space: Space) -> None:
         self.spaces.append(space)
+
+    def __str__(self) -> str:
+        """
+        Human-readable summary of the zone.
+        Only prints populated fields.
+        """
+
+        lines: list[str] = [f"Zone: {self.name}"]
+
+        if self.floor_area_sqft is not None:
+            lines.append(f"Floor Area: {self.floor_area_sqft} sqft")
+
+        if self.design_supply_airflow_cfm is not None:
+            lines.append(
+                f"Supply Airflow: "
+                f"{self.design_supply_airflow_cfm} CFM"
+            )
+
+        lines.append(f"Spaces: {len(self.spaces)}")
+
+        return "\n".join(lines)

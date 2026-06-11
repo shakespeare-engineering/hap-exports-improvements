@@ -49,6 +49,17 @@ def main() -> None:
                 f"{space.cooling_airflow_cfm} CFM"
             )
 
+    print(rtu_101)
+    print()
+
+    for zone in rtu_101.zones:
+        print(zone)
+        print()
+
+        for space in zone.spaces:
+            print(space)
+            print()
+
 
 if __name__ == "__main__":
     main()

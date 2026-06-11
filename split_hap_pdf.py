@@ -1,6 +1,27 @@
-from ast import keyword
+# ==========================================================
+# Imports
+# ==========================================================
+
+# Path handling for files/folders.
+# Used instead of raw strings for safer path operations.
 from pathlib import Path
+
+# PDF reading/writing utilities.
+# PdfReader -> reads existing PDFs
+# PdfWriter -> creates output PDFs
 from pypdf import PdfReader, PdfWriter
+
+# In-memory binary stream.
+# Used for temporary PDF overlays without
+# creating physical temp files on disk.
+from io import BytesIO
+
+# Used to draw graphics/text onto PDFs.
+# Needed for replacing HAP page numbering.
+from reportlab.pdfgen import canvas
+
+# Access to command-line arguments.
+# Used for drag-and-drop file support.
 import sys
 
 
@@ -34,6 +55,60 @@ def detect_report_type(text: str) -> str | None:
 
     return None
 
+def add_page_numbers(writer: PdfWriter) -> None:
+    """
+    Replace HAP footer page numbers with
+    correct numbering for the split PDF.
+    """
+
+    total_pages: int = len(writer.pages)
+
+    for page_num, page in enumerate(writer.pages, start=1):
+
+        # Get page dimensions
+        page_width = float(page.mediabox.width)
+        page_height = float(page.mediabox.height)
+
+        # Create temporary PDF overlay
+        # We use an in-memory BytesIO stream to avoid creating temporary files on disk.
+        # Temporary PDF will contain a white rectangle to cover old page number and new page number text.
+        overlay_stream: BytesIO = BytesIO()
+
+        overlay_canvas = canvas.Canvas(overlay_stream, pagesize=(page_width, page_height))
+
+        # Set fill color to white
+        overlay_canvas.setFillColorRGB(1, 1, 1)
+
+        # White rectangle to cover old footer
+        overlay_canvas.rect(
+            page_width - 96,     # x
+            20,                     # y
+            60,                     # width
+            30,                    # height
+            fill=1,
+            stroke=0
+        )
+
+        # Set text color to black
+        overlay_canvas.setFillColorRGB(0, 0, 0)
+
+        # New page number
+        overlay_canvas.drawString(
+            page_width - 166,        # x (adjust as needed for alignment)
+            20,                     # y (adjust as needed for alignment)
+            f"Page {page_num} of {total_pages}"
+        )
+
+        overlay_canvas.save()
+
+        # Move stream position to the beginning so it can be read by PdfReader
+        overlay_stream.seek(0)
+
+        overlay_pdf = PdfReader(overlay_stream)
+        overlay_page = overlay_pdf.pages[0]
+
+        # Merge overlay onto page
+        page.merge_page(overlay_page)
 
 def split_hap_pdf(pdf_path_str: str) -> None:
     """
@@ -83,6 +158,7 @@ def split_hap_pdf(pdf_path_str: str) -> None:
     # Used for multi-page reports
     current_report_type: str | None = None
 
+    # Loop through pages and classify them.  Pages are added to the appropriate writer based on their content.
     # enumerate makes it easy to track page numbers for logging.  start=1 makes page numbers 1-based instead of 0-based.
     for page_num, page in enumerate(reader.pages, start=1):
         try:
@@ -142,6 +218,9 @@ def split_hap_pdf(pdf_path_str: str) -> None:
     # Save PDFs
     for report_type, writer in writers.items():
         if len(writer.pages) > 0:
+            # Fix page numbering
+            add_page_numbers(writer)
+
             output_file: Path = output_files[report_type]
 
             # Note: "wb" (write binary) mode is required for writing binary PDF files.

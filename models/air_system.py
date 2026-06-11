@@ -1,6 +1,9 @@
 from dataclasses import dataclass, field
 
 from models.zone import Zone
+from models.coil import Coil
+from models.fan import Fan
+from models.ventilation import Ventilation
 from models.heat_balance import HeatBalance
 
 
@@ -20,26 +23,18 @@ class AirSystem:
     floor_area_sqft: float | None = None
     number_of_zones: int | None = None
 
-    # Cooling sizing
-    cooling_tons: float | None = None
-    cooling_total_mbh: float | None = None
-    cooling_sensible_mbh: float | None = None
-    cooling_peak_time: str | None = None
+    # Coils
+    cooling_coil: Coil = field(default_factory=Coil)
+    heating_coil: Coil = field(default_factory=Coil)
+    precool_coil: Coil = field(default_factory=Coil)
+    preheat_coil: Coil = field(default_factory=Coil)
 
-    # Heating sizing
-    heating_load_mbh: float | None = None
-
-    # Airflow
-    supply_airflow_cfm: float | None = None
-    outdoor_airflow_cfm: float | None = None
-
-    # Fan
-    fan_bhp: float | None = None
-    fan_kw: float | None = None
-    fan_static_pressure_inwg: float | None = None
+    # Fans
+    supply_fan: Fan = field(default_factory=Fan)
+    return_fan: Fan = field(default_factory=Fan)
 
     # Ventilation
-    occupants: float | None = None
+    ventilation: Ventilation = field(default_factory=Ventilation)
 
     # Child objects
     zones: list[Zone] = field(default_factory=list)
@@ -51,23 +46,38 @@ class AirSystem:
     def __str__(self) -> str:
         """
         Human-readable summary of the air system.
-        Only prints populated fields.
         """
 
         lines: list[str] = [f"Air System: {self.name}"]
 
-        if self.cooling_tons is not None:
-            lines.append(f"Cooling Tons: {self.cooling_tons}")
+        if self.cooling_coil.total_load_mbh is not None:
+            lines.append(
+                f"Cooling Tons: "
+                f"{self.cooling_coil.total_load_mbh/12.0:.1f}"
+            )
 
-        if self.supply_airflow_cfm is not None:
-            lines.append(f"Supply Airflow: {self.supply_airflow_cfm} CFM")
+        if (self.supply_fan.airflow_cfm is not None):
+            lines.append(
+                f"Supply Airflow: "
+                f"{self.supply_fan.airflow_cfm:.0f} CFM"
+            )
 
-        if self.fan_bhp is not None:
-            lines.append(f"Fan BHP: {self.fan_bhp}")
+        if self.supply_fan.fan_bhp is not None:
+            lines.append(
+                f"Fan BHP: "
+                f"{self.supply_fan.fan_bhp}"
+            )
 
         if self.floor_area_sqft is not None:
-            lines.append(f"Floor Area: {self.floor_area_sqft} sqft")
+            lines.append(
+                f"Floor Area: "
+                f"{self.floor_area_sqft:.0f} sqft"
+            )
 
-        lines.append(f"Zones: {len(self.zones)}")
+        lines.append(
+        f"Zones: "
+        f"{len(self.zones)}"
+        f"/{self.number_of_zones}"
+    )
 
         return "\n".join(lines)

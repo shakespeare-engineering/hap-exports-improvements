@@ -1,64 +1,92 @@
-from models.air_system import AirSystem
-from models.zone import Zone
-from models.space import Space
+from extractors.system_sizing_excel import (
+    extract_system_sizing_excel
+)
 
 
 def main() -> None:
 
-    # Create system
-    rtu_101 = AirSystem(name="RTU - 101")
+    excel_path = input(
+    "Drag System Sizing Excel here: "
+).strip().removeprefix("& ").strip("'").strip('"')
 
-    rtu_101.cooling_tons = 2.4
-    rtu_101.supply_airflow_cfm = 1659
-    rtu_101.fan_bhp = 0.91
+    systems = extract_system_sizing_excel(
+        excel_path
+    )
 
-    # Create zone
-    office_zone = Zone(name="OFFICE")
+    print("\n==========================")
+    print("SYSTEM SUMMARY")
+    print("==========================")
 
-    office_zone.design_supply_airflow_cfm = 332
-    office_zone.floor_area_sqft = 774
+    for system_name, system in systems.items():
 
-    # Create spaces
-    sales_office = Space(name="119-SALES OFFICE")
-    sales_office.floor_area_sqft = 109.9
-    sales_office.cooling_airflow_cfm = 44
+        print("\n--------------------------")
+        print(system)
 
-    gm_office = Space(name="122-GM OFFICE")
-    gm_office.floor_area_sqft = 87.4
-    gm_office.cooling_airflow_cfm = 39
+        print(
+            f"Equipment Type: "
+            f"{system.equipment_class}"
+        )
 
-    # Add spaces to zone
-    office_zone.add_space(sales_office)
-    office_zone.add_space(gm_office)
+        print(
+            f"System Type: "
+            f"{system.system_type}"
+        )
 
-    # Add zone to RTU
-    rtu_101.add_zone(office_zone)
+        # Cooling coil
+        print("\nCooling Coil")
 
-    # Print results
-    print(rtu_101)
+        print(
+            f"  Total MBH: "
+            f"{system.cooling_coil.total_load_mbh}"
+        )
 
-    print()
+        print(
+            f"  Sensible MBH: "
+            f"{system.cooling_coil.sensible_load_mbh}"
+        )
 
-    for zone in rtu_101.zones:
-        print(f"Zone: {zone.name}")
+        print(
+            f"  Airflow: "
+            f"{system.cooling_coil.airflow_cfm}"
+        )
 
-        for space in zone.spaces:
-            print(
-                f"    {space.name} | "
-                f"{space.floor_area_sqft} sqft | "
-                f"{space.cooling_airflow_cfm} CFM"
-            )
+        print(
+            f"  Peak Time: "
+            f"{system.cooling_coil.peak_time}"
+        )
 
-    print(rtu_101)
-    print()
+        # Heating coil
+        print("\nHeating Coil")
 
-    for zone in rtu_101.zones:
-        print(zone)
-        print()
+        print(
+            f"  Load MBH: "
+            f"{system.heating_coil.total_load_mbh}"
+        )
 
-        for space in zone.spaces:
-            print(space)
-            print()
+        print(
+            f"  Airflow: "
+            f"{system.heating_coil.airflow_cfm}"
+        )
+
+        # Supply fan
+        print("\nSupply Fan")
+
+        print(
+            f"  Airflow: "
+            f"{system.supply_fan.airflow_cfm}"
+        )
+
+        print(
+            f"  BHP: "
+            f"{system.supply_fan.fan_bhp}"
+        )
+
+        print(
+            f"  kW: "
+            f"{system.supply_fan.fan_kw}"
+        )
+
+    print("\nDone!")
 
 
 if __name__ == "__main__":

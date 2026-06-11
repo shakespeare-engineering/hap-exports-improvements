@@ -20,6 +20,9 @@ from io import BytesIO
 # Needed for replacing HAP page numbering.
 from reportlab.pdfgen import canvas
 
+# Used for date/time operations.
+from datetime import datetime
+
 # Access to command-line arguments.
 # Used for drag-and-drop file support.
 import sys
@@ -197,8 +200,8 @@ def split_hap_pdf(pdf_path_str: str) -> None:
             unknown_pages.append(page_num)
 
     # Create output folder
-    output_dir = pdf_path.parent / "HAP Exports"
-    # Note: exist_ok=True allows the directory to be created if it doesn't exist and does nothing if it already exists, preventing errors.
+    today_date: str = datetime.today().strftime("%Y-%m-%d")
+    output_dir = pdf_path.parent / f"{today_date}_HAP Exports"    # Note: exist_ok=True allows the directory to be created if it doesn't exist and does nothing if it already exists, preventing errors.
     output_dir.mkdir(exist_ok=True)
 
     output_files: dict[str, Path] = {

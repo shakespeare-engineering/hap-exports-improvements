@@ -9,6 +9,10 @@ class Space:
 
     name: str
 
+    system_name: str | None = None
+    alternative_name: str | None = None
+    zone_name: str | None = None
+
     # Geometry
     floor_area_sqft: float | None = None
 
@@ -23,6 +27,10 @@ class Space:
     # Heating
     heating_load_mbh: float | None = None
     heating_airflow_cfm: float | None = None
+    heating_sensible_mbh: float | None = None
+
+    # Airflow
+    supply_airflow_cfm: float | None = None
 
     # Ventilation
     maximum_occupants: float | None = None

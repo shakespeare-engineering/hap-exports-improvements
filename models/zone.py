@@ -12,6 +12,8 @@ class Zone:
 
     # General
     floor_area_sqft: float | None = None
+    system_name: str | None = None
+    alternative_name: str | None = None
 
     # Cooling sizing
     design_supply_airflow_cfm: float | None = None
@@ -29,6 +31,9 @@ class Zone:
     # Ventilation
     breathing_zone_oa_cfm: float | None = None
     adjusted_zone_oa_cfm: float | None = None
+
+    # Occ. Clg Setpoint (F) not implemented
+
 
     # Child spaces
     # Note: field is used to create a default empty list for the spaces attribute. 

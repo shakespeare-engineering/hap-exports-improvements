@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from models.air_system import AirSystem
 from models.zone import Zone
 from models.space import Space
 
@@ -13,7 +14,7 @@ def clean_value(value):
     return None if pd.isna(value) else value
 
 
-def extract_zone_sizing_excel(excel_path_str: str) -> dict[str, Zone]:
+def extract_zone_sizing_excel(excel_path_str: str, systems: dict[str, AirSystem]) -> None:
     """
     Extract Zone objects from a
     HAP Zone Sizing Summary Excel export.
@@ -179,6 +180,31 @@ def extract_zone_sizing_excel(excel_path_str: str) -> dict[str, Zone]:
 
         zone.add_space(space)
 
-    print(f"\nLoaded {len(zones)} zones.")
+    # ==================================================
+    # Attach zones to systems
+    # ==================================================
 
-    return zones
+    attached_count = 0
+
+    for zone in zones.values():
+
+        if not zone.system_name:
+            continue
+
+        system = systems.get(zone.system_name)
+
+        if system is None:
+            print(
+                f"System not found for zone: "
+                f"{zone.name} "
+                f"({zone.system_name})"
+            )
+            continue
+
+        system.add_zone(zone)
+        attached_count += 1
+
+    print(f"\nLoaded {len(zones)} zones.")
+    print(f"Attached {attached_count} zones to systems.")
+
+    print("\nZone extraction complete.")

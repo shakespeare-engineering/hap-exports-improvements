@@ -13,3 +13,7 @@ class Ventilation:
     cfm_per_person: float | None = None
 
     percent_outdoor_air: float | None = None
+
+    # PDF ventilation report
+    design_oa_cfm: float | None = None
+    corrected_oa_cfm: float | None = None

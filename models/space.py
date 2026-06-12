@@ -40,6 +40,11 @@ class Space:
     oa_per_sqft: float | None = None
     direct_exhaust_cfm: float | None = None
 
+    uncorrected_oa_cfm: float = None
+    exhaust_air_cfm: float = None
+    max_occupants: float = None
+    ventilation_supply_air_cfm: float = None
+
     def __str__(self) -> str:
         """
         Human-readable summary of the space.

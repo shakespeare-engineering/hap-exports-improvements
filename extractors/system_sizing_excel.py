@@ -34,8 +34,9 @@ def extract_system_sizing_excel(excel_path_str: str) -> dict[str, AirSystem]:
         header=2
     )
 
-    print("\nColumns found:")
-    print(dataframe.columns.tolist())
+    # Debug print the name of the columns
+    # print("\nColumns found:")
+    # print(dataframe.columns.tolist())
 
     systems: dict[str, AirSystem] = {}
 

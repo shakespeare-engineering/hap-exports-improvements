@@ -6,6 +6,7 @@ from models.air_system import AirSystem
 from models.zone import Zone
 from models.space import Space
 
+DEBUG: bool = False
 
 def clean_value(value):
     """
@@ -41,8 +42,9 @@ def extract_zone_sizing_excel(excel_path_str: str, systems: dict[str, AirSystem]
         header=1
     )
 
-    print("\nZone-Air-Terminal-Sizing columns found:")
-    print(terminal_dataframe.columns.tolist())
+    if DEBUG:
+        print("\nZone-Air-Terminal-Sizing columns found:")
+        print(terminal_dataframe.columns.tolist())
 
     for _, row in terminal_dataframe.iterrows():
 
@@ -91,8 +93,9 @@ def extract_zone_sizing_excel(excel_path_str: str, systems: dict[str, AirSystem]
         header=1
     )
 
-    print("\nZone-Loads columns found:")
-    print(zone_loads_dataframe.columns.tolist())
+    if DEBUG:
+        print("\nZone-Loads columns found:")
+        print(zone_loads_dataframe.columns.tolist())
 
     for _, row in zone_loads_dataframe.iterrows():
 
@@ -137,8 +140,9 @@ def extract_zone_sizing_excel(excel_path_str: str, systems: dict[str, AirSystem]
         header=1
     )
 
-    print("\nSpace-Loads columns found:")
-    print(space_dataframe.columns.tolist())
+    if DEBUG:
+        print("\nSpace-Loads columns found:")
+        print(space_dataframe.columns.tolist())
 
     for _, row in space_dataframe.iterrows():
 

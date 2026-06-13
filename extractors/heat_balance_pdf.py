@@ -137,8 +137,6 @@ def extract_heat_balance_pdf(
         if not text:
             continue
 
-        print(text)
-
         # ==================================================
         # Find system
         # ==================================================

@@ -9,19 +9,43 @@ from extractors.zone_sizing_excel import (
 from extractors.ventilation_pdf import (
     extract_ventilation_pdf,
 )
+from extractors.heat_balance_pdf import (
+    extract_heat_balance_pdf
+)
 
 
-def print_dataclass(obj, indent=0) -> None:
+def format_value(value) -> str:
     """
-    Recursively print all populated data
-    from dataclasses.
+    Make printed numbers easier to read.
     """
 
-    spacing = "    " * indent
+    if isinstance(value, float):
 
-    # Non-dataclass object
+        if value.is_integer():
+            return str(int(value))
+
+        return f"{value:.2f}"
+
+    return str(value)
+
+
+def print_dataclass(
+    obj,
+    indent: int = 0
+) -> None:
+    """
+    Recursively print populated dataclass data.
+    """
+
+    spacing: str = "    " * indent
+
     if not is_dataclass(obj):
-        print(f"{spacing}{obj}")
+
+        print(
+            f"{spacing}"
+            f"{format_value(obj)}"
+        )
+
         return
 
     print(
@@ -31,13 +55,20 @@ def print_dataclass(obj, indent=0) -> None:
 
     for field in fields(obj):
 
-        value = getattr(obj, field.name)
+        value = getattr(
+            obj,
+            field.name
+        )
 
         # Skip empty values
         if value is None:
             continue
 
-        # Lists (zones, spaces, etc.)
+        # Skip empty lists
+        if isinstance(value, list) and not value:
+            continue
+
+        # Nested list
         if isinstance(value, list):
 
             print(
@@ -47,12 +78,13 @@ def print_dataclass(obj, indent=0) -> None:
             )
 
             for item in value:
+
                 print_dataclass(
                     item,
                     indent + 2
                 )
 
-        # Nested dataclasses
+        # Nested dataclass
         elif is_dataclass(value):
 
             print(
@@ -65,19 +97,19 @@ def print_dataclass(obj, indent=0) -> None:
                 indent + 2
             )
 
-        # Normal values
+        # Normal value
         else:
 
             print(
                 f"{spacing}  "
                 f"{field.name}: "
-                f"{value}"
+                f"{format_value(value)}"
             )
 
 
 def main() -> None:
 
-    system_excel = (
+    system_excel: str = (
         input(
             "Drag System Sizing Excel here: "
         )
@@ -87,7 +119,7 @@ def main() -> None:
         .replace("'", "")
     )
 
-    zone_excel = (
+    zone_excel: str = (
         input(
             "Drag Zone Sizing Excel here: "
         )
@@ -97,9 +129,19 @@ def main() -> None:
         .replace("'", "")
     )
 
-    ventilation_pdf = (
+    ventilation_pdf: str = (
         input(
             "Drag Ventilation PDF here: "
+        )
+        .strip()
+        .strip('"')
+        .replace("& ", "")
+        .replace("'", "")
+    )
+
+    heat_balance_pdf: str = (
+        input(
+            "Drag Heat Balance PDF here: "
         )
         .strip()
         .strip('"')
@@ -111,8 +153,10 @@ def main() -> None:
     # Extraction
     # ==================================================
 
-    systems = extract_system_sizing_excel(
-        system_excel
+    systems: dict = (
+        extract_system_sizing_excel(
+            system_excel
+        )
     )
 
     extract_zone_sizing_excel(
@@ -122,6 +166,11 @@ def main() -> None:
 
     extract_ventilation_pdf(
         ventilation_pdf,
+        systems
+    )
+
+    extract_heat_balance_pdf(
+        heat_balance_pdf,
         systems
     )
 
@@ -135,11 +184,15 @@ def main() -> None:
             iter(systems.values())
         )
 
-        print("\n" + "=" * 80)
+        print(
+            "\n" + "=" * 80
+        )
+
         print(
             "FIRST SYSTEM "
             "FULL DATA"
         )
+
         print("=" * 80)
 
         print_dataclass(

@@ -1,10 +1,8 @@
 from pathlib import Path
-from typing import Callable
 
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from openpyxl.styles import PatternFill
-from openpyxl.styles import Alignment
 
 from models.air_system import AirSystem
 
@@ -13,67 +11,10 @@ def safe_number(
     value: float | None
 ) -> float:
     """
-    Convert None to 0 for math.
+    Convert None to 0.
     """
 
     return value or 0
-
-
-def add_load_row(
-    sheet,
-    row: int,
-    label: str,
-    sensible: float | None,
-    latent: float | None
-) -> int:
-    """
-    Add a load row.
-
-    Total is calculated
-    with Excel formula.
-    """
-
-    sensible_value: float = (
-        sensible or 0
-    )
-
-    latent_value: float = (
-        latent or 0
-    )
-
-    # ======================================
-    # Write values
-    # ======================================
-
-    sheet.cell(
-        row=row,
-        column=1,
-        value=label
-    )
-
-    sheet.cell(
-        row=row,
-        column=2,
-        value=sensible_value
-    )
-
-    sheet.cell(
-        row=row,
-        column=3,
-        value=latent_value
-    )
-
-    # ======================================
-    # Excel formula
-    # ======================================
-
-    sheet.cell(
-        row=row,
-        column=4,
-        value=f"=SUM(B{row}:C{row})"
-    )
-
-    return row + 1
 
 
 def add_section_header(
@@ -82,14 +23,14 @@ def add_section_header(
     title: str
 ) -> int:
     """
-    Add a formatted section header.
+    Add formatted section header.
     """
 
     sheet.merge_cells(
         start_row=row,
         start_column=1,
         end_row=row,
-        end_column=4
+        end_column=5
     )
 
     cell = sheet.cell(
@@ -109,16 +50,16 @@ def add_section_header(
 
     return row + 1
 
-def add_total_row(
+
+def add_load_row(
     sheet,
     row: int,
-    start_row: int,
-    end_row: int,
-    label: str = "Grand Total"
+    label: str,
+    sensible: float | None,
+    latent: float | None
 ) -> int:
     """
-    Add a total row using
-    Excel SUM formulas.
+    Add load row using Excel formulas.
     """
 
     sheet.cell(
@@ -127,69 +68,119 @@ def add_total_row(
         value=label
     )
 
-    # Sensible total
+    sheet.cell(
+        row=row,
+        column=2,
+        value=safe_number(
+            sensible
+        )
+    )
+
+    sheet.cell(
+        row=row,
+        column=3,
+        value=safe_number(
+            latent
+        )
+    )
+
+    # Total
+    sheet.cell(
+        row=row,
+        column=4,
+        value=f"=B{row}+C{row}"
+    )
+
+    return row + 1
+
+
+def add_subtotal_row(
+    sheet,
+    row: int,
+    title: str,
+    start_row: int,
+    end_row: int
+) -> int:
+    """
+    Add subtotal row.
+    """
+
+    sheet.cell(
+        row=row,
+        column=1,
+        value=title
+    )
+
     sheet.cell(
         row=row,
         column=2,
         value=(
-            f"=SUM(B{start_row}"
-            f":B{end_row})"
+            f"=SUM(B{start_row}:"
+            f"B{end_row})"
         )
     )
 
-    # Latent total
     sheet.cell(
         row=row,
         column=3,
         value=(
-            f"=SUM(C{start_row}"
-            f":C{end_row})"
+            f"=SUM(C{start_row}:"
+            f"C{end_row})"
         )
     )
 
-    # Overall total
     sheet.cell(
         row=row,
         column=4,
-        value=(
-            f"=SUM(D{start_row}"
-            f":D{end_row})"
-        )
+        value=f"=B{row}+C{row}"
     )
 
-    # Formatting
-    for column in range(1, 5):
-
-        sheet.cell(
-            row=row,
-            column=column
-        ).font = Font(
+    for cell in sheet[row]:
+        cell.font = Font(
             bold=True
         )
 
-    return row + 1
+    return row + 2
 
-def format_sheet(sheet) -> None:
+
+def format_sheet(
+    sheet
+) -> None:
     """
-    Apply simple formatting.
+    Apply formatting.
     """
 
-    sheet.column_dimensions["A"].width = 30
-    sheet.column_dimensions["B"].width = 15
-    sheet.column_dimensions["C"].width = 15
-    sheet.column_dimensions["D"].width = 15
+    sheet.column_dimensions[
+        "A"
+    ].width = 35
 
     for column in [
         "B",
         "C",
         "D"
     ]:
+        sheet.column_dimensions[
+            column
+        ].width = 14
 
+    sheet.column_dimensions[
+        "E"
+    ].width = 12
+
+    for column in [
+        "B",
+        "C",
+        "D"
+    ]:
         for cell in sheet[column]:
-
             cell.number_format = (
                 '#,##0'
             )
+
+    for cell in sheet["E"]:
+        cell.number_format = (
+            '0.0%'
+        )
 
 
 def export_system_checksums(
@@ -197,27 +188,30 @@ def export_system_checksums(
     output_path: str | Path
 ) -> None:
     """
-    Export system checksum workbook.
+    Export checksum workbook.
     """
 
-    workbook: Workbook = Workbook()
+    workbook: Workbook = (
+        Workbook()
+    )
 
-    # Remove default sheet
     workbook.remove(
         workbook.active
     )
 
     for system in systems.values():
 
-        sheet_name: str = (
-            system.name[:31]
+        sheet = (
+            workbook.create_sheet(
+                title=(
+                    system.name[:31]
+                )
+            )
         )
 
-        sheet = workbook.create_sheet(
-            title=sheet_name
+        heat = (
+            system.heat_balance
         )
-
-        heat = system.heat_balance
 
         row: int = 1
 
@@ -256,10 +250,12 @@ def export_system_checksums(
         # Cooling Conditions
         # ======================================
 
-        row = add_section_header(
-            sheet,
-            row,
-            "Cooling Conditions"
+        row = (
+            add_section_header(
+                sheet,
+                row,
+                "Cooling Conditions"
+            )
         )
 
         sheet.cell(
@@ -311,14 +307,18 @@ def export_system_checksums(
         row += 2
 
         # ======================================
-        # Loads
+        # Loads Header
         # ======================================
 
-        row = add_section_header(
-            sheet,
-            row,
-            "Loads"
+        row = (
+            add_section_header(
+                sheet,
+                row,
+                "Cooling Loads"
+            )
         )
+
+        headers_row = row
 
         sheet.cell(
             row=row,
@@ -344,7 +344,15 @@ def export_system_checksums(
             value="Total"
         )
 
+        sheet.cell(
+            row=row,
+            column=5,
+            value="% Total"
+        )
+
         row += 2
+
+        percent_rows: list[int] = []
 
         # ======================================
         # Envelope Loads
@@ -355,6 +363,8 @@ def export_system_checksums(
             row,
             "Envelope Loads"
         )
+
+        start_row = row
 
         row = add_load_row(
             sheet,
@@ -420,7 +430,28 @@ def export_system_checksums(
             None
         )
 
-        row += 1
+        end_row = row - 1
+
+        percent_rows.extend(
+            range(
+                start_row,
+                end_row + 1
+            )
+        )
+
+        subtotal_row = row
+
+        row = add_subtotal_row(
+            sheet,
+            row,
+            "Envelope Subtotal",
+            start_row,
+            end_row
+        )
+
+        percent_rows.append(
+            subtotal_row
+        )
 
         # ======================================
         # Internal Loads
@@ -431,6 +462,8 @@ def export_system_checksums(
             row,
             "Internal Loads"
         )
+
+        start_row = row
 
         row = add_load_row(
             sheet,
@@ -443,12 +476,49 @@ def export_system_checksums(
         row = add_load_row(
             sheet,
             row,
-            "Overhead Lighting",
-            heat.overhead_lighting_btu,
-            None
+            "Infiltration",
+            heat.infiltration_sensible_btu,
+            heat.infiltration_latent_btu
         )
 
-        row += 1
+        row = add_load_row(
+            sheet,
+            row,
+            "Misc Equipment",
+            heat.misc_equipment_sensible_btu,
+            heat.misc_equipment_latent_btu
+        )
+
+        row = add_load_row(
+            sheet,
+            row,
+            "Air Energy Change",
+            heat.air_energy_change_sensible_btu,
+            heat.air_energy_change_latent_btu
+        )
+
+        end_row = row - 1
+
+        percent_rows.extend(
+            range(
+                start_row,
+                end_row + 1
+            )
+        )
+
+        subtotal_row = row
+
+        row = add_subtotal_row(
+            sheet,
+            row,
+            "Internal Subtotal",
+            start_row,
+            end_row
+        )
+
+        percent_rows.append(
+            subtotal_row
+        )
 
         # ======================================
         # Equipment Loads
@@ -458,6 +528,16 @@ def export_system_checksums(
             sheet,
             row,
             "Equipment Loads"
+        )
+
+        start_row = row
+
+        row = add_load_row(
+            sheet,
+            row,
+            "Overhead Lighting",
+            heat.overhead_lighting_btu,
+            None
         )
 
         row = add_load_row(
@@ -471,30 +551,33 @@ def export_system_checksums(
         row = add_load_row(
             sheet,
             row,
-            "Electrical Equipment",
+            "Equipment",
             heat.equipment_btu,
             None
         )
 
-        row += 1
+        end_row = row - 1
 
-        # ======================================
-        # Zone Total
-        # ======================================
-
-
-        zone_total_start_row: int = 14
-        zone_total_end_row: int = row - 2
-
-        row = add_total_row(
-            sheet,
-            row=row,
-            start_row=zone_total_start_row,
-            end_row=zone_total_end_row,
-            label="Zone Total"
+        percent_rows.extend(
+            range(
+                start_row,
+                end_row + 1
+            )
         )
 
-        row += 1
+        subtotal_row = row
+
+        row = add_subtotal_row(
+            sheet,
+            row,
+            "Equipment Subtotal",
+            start_row,
+            end_row
+        )
+
+        percent_rows.append(
+            subtotal_row
+        )
 
         # ======================================
         # System Loads
@@ -503,8 +586,10 @@ def export_system_checksums(
         row = add_section_header(
             sheet,
             row,
-            "System Loads"
+            "System / Airside Loads"
         )
+
+        start_row = row
 
         row = add_load_row(
             sheet,
@@ -546,32 +631,53 @@ def export_system_checksums(
             heat.supply_fan_latent_btu
         )
 
-        row += 1
-
-        # ======================================
-        # Systems Total
-        # ======================================
-        systems_total_start_row: int = 35
-        systems_total_end_row: int = row - 2
-
-        row = add_total_row(
+        row = add_load_row(
             sheet,
-            row=row,
-            start_row=systems_total_start_row,
-            end_row=systems_total_end_row,
-            label="Systems Total"
+            row,
+            "Zone Fan Coil Fans",
+            heat.zone_fan_coils_sensible_btu,
+            heat.zone_fan_coils_latent_btu
         )
 
-        row += 1
+        end_row = row - 1
+
+        percent_rows.extend(
+            range(
+                start_row,
+                end_row + 1
+            )
+        )
+
+        subtotal_row = row
+
+        row = add_subtotal_row(
+            sheet,
+            row,
+            "System Load Subtotal",
+            start_row,
+            end_row
+        )
+
+        percent_rows.append(
+            subtotal_row
+        )
 
         # ======================================
-        # Coil Loads
+        # HAP Totals
         # ======================================
 
         row = add_section_header(
             sheet,
             row,
-            "Coil Loads"
+            "HAP Totals"
+        )
+
+        row = add_load_row(
+            sheet,
+            row,
+            "Total System Loads",
+            heat.total_system_sensible_btu,
+            heat.total_system_latent_btu
         )
 
         row = add_load_row(
@@ -590,40 +696,88 @@ def export_system_checksums(
             heat.central_heating_coil_latent_btu
         )
 
-        row += 1
-
-
-        # ======================================
-        # Total Conditioning
-        # ======================================
-        systems_total_start_row: int = 42
-        systems_total_end_row: int = row - 2
-
-        row = add_total_row(
+        row = add_load_row(
             sheet,
-            row=row,
-            start_row=systems_total_start_row,
-            end_row=systems_total_end_row,
-            label="Total Conditioning"
+            row,
+            "Total Conditioning",
+            heat.total_conditioning_sensible_btu,
+            heat.total_conditioning_latent_btu
         )
 
-        row += 1
+        # ======================================
+        # Grand Total
+        # ======================================
 
-        format_sheet(sheet)
+        grand_total_row = (
+            row + 2
+        )
 
-    output_path = Path(
-        output_path
-    )
+        sheet.cell(
+            row=grand_total_row,
+            column=1,
+            value="Grand Total"
+        )
+
+        sheet.cell(
+            row=grand_total_row,
+            column=4,
+            value=(
+                f"=D51"
+            )
+        )
+
+        sheet[
+            f"A{grand_total_row}"
+        ].font = Font(
+            bold=True
+        )
+
+        sheet[
+            f"D{grand_total_row}"
+        ].font = Font(
+            bold=True
+        )
+
+        # ======================================
+        # % Total Formulas
+        # ======================================
+
+        for percent_row in (
+            percent_rows
+        ):
+            sheet.cell(
+                row=percent_row,
+                column=5,
+                value=(
+                    f"=D{percent_row}"
+                    f"/D{51}"
+                )
+            )
+
+        for percent_row in (
+            [48, 49, 50, 51, 54]
+        ):
+            sheet.cell(
+                row=percent_row,
+                column=5,
+                value=(
+                    f"=D{percent_row}"
+                    f"/D{51}"
+                )
+            )
+
+        format_sheet(
+            sheet
+        )
 
     workbook.save(
-        output_path
+        Path(output_path)
     )
 
     print(
-        f"\nSaved workbook:"
+        "\nSaved workbook:"
     )
 
     print(
         output_path
     )
-

@@ -27,21 +27,23 @@ def add_load_row(
     latent: float | None
 ) -> int:
     """
-    Add a load row and calculate total.
+    Add a load row.
+
+    Total is calculated
+    with Excel formula.
     """
 
-    sensible_value: float = safe_number(
-        sensible
+    sensible_value: float = (
+        sensible or 0
     )
 
-    latent_value: float = safe_number(
-        latent
+    latent_value: float = (
+        latent or 0
     )
 
-    total_value: float = (
-        sensible_value
-        + latent_value
-    )
+    # ======================================
+    # Write values
+    # ======================================
 
     sheet.cell(
         row=row,
@@ -61,10 +63,14 @@ def add_load_row(
         value=latent_value
     )
 
+    # ======================================
+    # Excel formula
+    # ======================================
+
     sheet.cell(
         row=row,
         column=4,
-        value=total_value
+        value=f"=SUM(B{row}:C{row})"
     )
 
     return row + 1
@@ -103,6 +109,65 @@ def add_section_header(
 
     return row + 1
 
+def add_total_row(
+    sheet,
+    row: int,
+    start_row: int,
+    end_row: int,
+    label: str = "Grand Total"
+) -> int:
+    """
+    Add a total row using
+    Excel SUM formulas.
+    """
+
+    sheet.cell(
+        row=row,
+        column=1,
+        value=label
+    )
+
+    # Sensible total
+    sheet.cell(
+        row=row,
+        column=2,
+        value=(
+            f"=SUM(B{start_row}"
+            f":B{end_row})"
+        )
+    )
+
+    # Latent total
+    sheet.cell(
+        row=row,
+        column=3,
+        value=(
+            f"=SUM(C{start_row}"
+            f":C{end_row})"
+        )
+    )
+
+    # Overall total
+    sheet.cell(
+        row=row,
+        column=4,
+        value=(
+            f"=SUM(D{start_row}"
+            f":D{end_row})"
+        )
+    )
+
+    # Formatting
+    for column in range(1, 5):
+
+        sheet.cell(
+            row=row,
+            column=column
+        ).font = Font(
+            bold=True
+        )
+
+    return row + 1
 
 def format_sheet(sheet) -> None:
     """
@@ -409,6 +474,23 @@ def export_system_checksums(
             "Equipment",
             heat.equipment_btu,
             None
+        )
+
+        # ======================================
+        # Grand Total
+        # ======================================
+
+        row += 1
+
+        grand_total_start_row: int = 14
+        grand_total_end_row: int = row - 2
+
+        row = add_total_row(
+            sheet,
+            row=row,
+            start_row=grand_total_start_row,
+            end_row=grand_total_end_row,
+            label="Grand Total"
         )
 
         format_sheet(sheet)

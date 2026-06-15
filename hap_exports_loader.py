@@ -205,9 +205,12 @@ def main() -> None:
 
     systems: dict[str, AirSystem] = (load_hap_exports(project_directory))
 
-    # Debug print the first system
+    # Debug print the first system from ventilation testing
     first_system: AirSystem = next(iter(systems.values()))
     print_dataclass(first_system)
+
+    # Additional testing
+    # print(first_system.heat_balance)
 
 
 if __name__ == "__main__":

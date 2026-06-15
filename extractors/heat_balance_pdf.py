@@ -12,7 +12,7 @@ def clean_number(value: str | None) -> float | None:
     except Exception:
         return None
 
-
+# May need to be deleted
 def extract_row_values(
     text: str,
     label: str
@@ -33,6 +33,58 @@ def extract_row_values(
         clean_number(match.group(2))
     ) if match else (None, None)
 
+def extract_system_load_values(
+    text: str,
+    label: str
+) -> tuple[
+    float | None,
+    float | None
+]:
+    """
+    Extract cooling sensible and latent
+    values from Table 1.
+
+    Handles formats like:
+
+    Zone Conditioning
+    - 12408 1365
+
+    Ventilation Load
+    63 CFM 1228 -1290
+
+    Supply Fan Load
+    1173 CFM 1739 -
+    """
+
+    match = re.search(
+        rf"{re.escape(label)}\s+"
+        rf"(?:[-\d.]+\s*(?:CFM|sqft|W)?\s+)?"  # details
+        rf"(-?\d+(?:\.\d+)?)\s+"               # sensible
+        rf"(-?\d+(?:\.\d+)?)",                # latent
+        text,
+        re.MULTILINE
+    )
+
+    if not match:
+
+        print(
+            f"Could not find "
+            f"Table 1 row: {label}"
+        )
+
+        return (
+            None,
+            None
+        )
+
+    return (
+        clean_number(
+            match.group(1)
+        ),
+        clean_number(
+            match.group(2)
+        )
+    )
 
 def extract_detail_values(
     text: str,
@@ -215,7 +267,7 @@ def extract_heat_balance_pdf(
         (
             heat.zone_conditioning_sensible_btu,
             heat.zone_conditioning_latent_btu
-        ) = extract_row_values(
+        ) = extract_system_load_values(
             text,
             "Zone Conditioning"
         )
@@ -223,7 +275,7 @@ def extract_heat_balance_pdf(
         (
             heat.plenum_load_sensible_btu,
             heat.plenum_load_latent_btu
-        ) = extract_row_values(
+        ) = extract_system_load_values(
             text,
             "Plenum Load"
         )
@@ -231,7 +283,7 @@ def extract_heat_balance_pdf(
         (
             heat.return_fan_sensible_btu,
             heat.return_fan_latent_btu
-        ) = extract_row_values(
+        ) = extract_system_load_values(
             text,
             "Return Fan Load"
         )
@@ -239,7 +291,7 @@ def extract_heat_balance_pdf(
         (
             heat.ventilation_sensible_btu,
             heat.ventilation_latent_btu
-        ) = extract_row_values(
+        ) = extract_system_load_values(
             text,
             "Ventilation Load"
         )
@@ -247,7 +299,7 @@ def extract_heat_balance_pdf(
         (
             heat.supply_fan_sensible_btu,
             heat.supply_fan_latent_btu
-        ) = extract_row_values(
+        ) = extract_system_load_values(
             text,
             "Supply Fan Load"
         )
@@ -255,7 +307,7 @@ def extract_heat_balance_pdf(
         (
             heat.zone_fan_coils_sensible_btu,
             heat.zone_fan_coils_latent_btu
-        ) = extract_row_values(
+        ) = extract_system_load_values(
             text,
             "Zone Fan Coil Fans Load"
         )
@@ -263,7 +315,7 @@ def extract_heat_balance_pdf(
         (
             heat.total_system_sensible_btu,
             heat.total_system_latent_btu
-        ) = extract_row_values(
+        ) = extract_system_load_values(
             text,
             ">> Total System Loads"
         )
@@ -271,7 +323,7 @@ def extract_heat_balance_pdf(
         (
             heat.central_cooling_coil_sensible_btu,
             heat.central_cooling_coil_latent_btu
-        ) = extract_row_values(
+        ) = extract_system_load_values(
             text,
             "Central Cooling Coil"
         )
@@ -279,7 +331,7 @@ def extract_heat_balance_pdf(
         (
             heat.central_heating_coil_sensible_btu,
             heat.central_heating_coil_latent_btu
-        ) = extract_row_values(
+        ) = extract_system_load_values(
             text,
             "Central Heating Coil"
         )
@@ -287,7 +339,7 @@ def extract_heat_balance_pdf(
         (
             heat.total_conditioning_sensible_btu,
             heat.total_conditioning_latent_btu
-        ) = extract_row_values(
+        ) = extract_system_load_values(
             text,
             ">> Total Conditioning"
         )
@@ -395,7 +447,7 @@ def extract_heat_balance_pdf(
             "Electric Equipment Convection"
         )
 
-        # This is broken TODO: Fix the extraction of people loads
+        # People loads
         people_match = re.search(
             r"People Convection\s+"
             r"(\d+(?:\.\d+)?)\s+"

@@ -396,13 +396,28 @@ def extract_heat_balance_pdf(
         )
 
         # This is broken TODO: Fix the extraction of people loads
-        (
-            heat.people_sensible_btu,
-            heat.people_latent_btu
-        ) = extract_row_values(
+        people_match = re.search(
+            r"People Convection\s+"
+            r"(\d+(?:\.\d+)?)\s+"
+            r"(-?\d+(?:\.\d+)?)\s+"
+            r"(-?\d+(?:\.\d+)?)",
             text,
-            "People Convection"
+            re.MULTILINE
         )
+
+        if people_match:
+
+            heat.people_count = clean_number(
+                people_match.group(1)
+            )
+
+            heat.people_sensible_btu = clean_number(
+                people_match.group(2)
+            )
+
+            heat.people_latent_btu = clean_number(
+                people_match.group(3)
+            )
 
         (
             heat.infiltration_sensible_btu,

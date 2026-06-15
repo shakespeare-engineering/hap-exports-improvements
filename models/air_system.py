@@ -15,6 +15,8 @@ class AirSystem:
 
     name: str
 
+    project_name: str | None = None
+
     # General system info
     equipment_class: str | None = None
     system_type: str | None = None

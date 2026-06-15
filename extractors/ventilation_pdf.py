@@ -64,6 +64,22 @@ def extract_ventilation_pdf(pdf_path_str: str,systems: dict[str, AirSystem]):
         system = systems[system_name]
 
         # ==================================================
+        # Project Name
+        # ==================================================
+
+        project_match = re.search(
+            r"Project:\s+(.+?)\s+\d{2}/\d{2}/\d{4}",
+            text
+        )
+
+        if project_match:
+
+            system.project_name = (
+                project_match.group(1)
+                .strip()
+            )
+
+        # ==================================================
         # System Ventilation Airflow
         # ==================================================
 

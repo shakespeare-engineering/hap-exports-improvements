@@ -476,11 +476,12 @@ def export_system_checksums(
             None
         )
 
+        row += 1
+
         # ======================================
         # Zone Total
         # ======================================
 
-        row += 1
 
         zone_total_start_row: int = 14
         zone_total_end_row: int = row - 2
@@ -492,6 +493,121 @@ def export_system_checksums(
             end_row=zone_total_end_row,
             label="Zone Total"
         )
+
+        row += 1
+
+        # ======================================
+        # System Loads
+        # ======================================
+
+        row = add_section_header(
+            sheet,
+            row,
+            "System Loads"
+        )
+
+        row = add_load_row(
+            sheet,
+            row,
+            "Zone Conditioning",
+            heat.zone_conditioning_sensible_btu,
+            heat.zone_conditioning_latent_btu
+        )
+
+        row = add_load_row(
+            sheet,
+            row,
+            "Plenum Load",
+            heat.plenum_load_sensible_btu,
+            heat.plenum_load_latent_btu
+        )
+
+        row = add_load_row(
+            sheet,
+            row,
+            "Return Fan Load",
+            heat.return_fan_sensible_btu,
+            heat.return_fan_latent_btu
+        )
+
+        row = add_load_row(
+            sheet,
+            row,
+            "Ventilation Load",
+            heat.ventilation_sensible_btu,
+            heat.ventilation_latent_btu
+        )
+
+        row = add_load_row(
+            sheet,
+            row,
+            "Supply Fan Load",
+            heat.supply_fan_sensible_btu,
+            heat.supply_fan_latent_btu
+        )
+
+        row += 1
+
+        # ======================================
+        # Systems Total
+        # ======================================
+        systems_total_start_row: int = 35
+        systems_total_end_row: int = row - 2
+
+        row = add_total_row(
+            sheet,
+            row=row,
+            start_row=systems_total_start_row,
+            end_row=systems_total_end_row,
+            label="Systems Total"
+        )
+
+        row += 1
+
+        # ======================================
+        # Coil Loads
+        # ======================================
+
+        row = add_section_header(
+            sheet,
+            row,
+            "Coil Loads"
+        )
+
+        row = add_load_row(
+            sheet,
+            row,
+            "Central Cooling Coil",
+            heat.central_cooling_coil_sensible_btu,
+            heat.central_cooling_coil_latent_btu
+        )
+
+        row = add_load_row(
+            sheet,
+            row,
+            "Central Heating Coil",
+            heat.central_heating_coil_sensible_btu,
+            heat.central_heating_coil_latent_btu
+        )
+
+        row += 1
+
+
+        # ======================================
+        # Total Conditioning
+        # ======================================
+        systems_total_start_row: int = 42
+        systems_total_end_row: int = row - 2
+
+        row = add_total_row(
+            sheet,
+            row=row,
+            start_row=systems_total_start_row,
+            end_row=systems_total_end_row,
+            label="Total Conditioning"
+        )
+
+        row += 1
 
         format_sheet(sheet)
 

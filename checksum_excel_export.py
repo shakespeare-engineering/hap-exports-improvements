@@ -440,6 +440,14 @@ def export_system_checksums(
             heat.people_latent_btu
         )
 
+        row = add_load_row(
+            sheet,
+            row,
+            "Overhead Lighting",
+            heat.overhead_lighting_btu,
+            None
+        )
+
         row += 1
 
         # ======================================
@@ -455,14 +463,6 @@ def export_system_checksums(
         row = add_load_row(
             sheet,
             row,
-            "Overhead Lighting",
-            heat.overhead_lighting_btu,
-            None
-        )
-
-        row = add_load_row(
-            sheet,
-            row,
             "Task Lighting",
             heat.task_lighting_btu,
             None
@@ -471,26 +471,26 @@ def export_system_checksums(
         row = add_load_row(
             sheet,
             row,
-            "Equipment",
+            "Electrical Equipment",
             heat.equipment_btu,
             None
         )
 
         # ======================================
-        # Grand Total
+        # Zone Total
         # ======================================
 
         row += 1
 
-        grand_total_start_row: int = 14
-        grand_total_end_row: int = row - 2
+        zone_total_start_row: int = 14
+        zone_total_end_row: int = row - 2
 
         row = add_total_row(
             sheet,
             row=row,
-            start_row=grand_total_start_row,
-            end_row=grand_total_end_row,
-            label="Grand Total"
+            start_row=zone_total_start_row,
+            end_row=zone_total_end_row,
+            label="Zone Total"
         )
 
         format_sheet(sheet)

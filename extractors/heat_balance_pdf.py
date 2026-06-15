@@ -41,26 +41,33 @@ def extract_system_load_values(
     float | None
 ]:
     """
-    Extract cooling sensible and latent
+    Extract cooling sensible + latent
     values from Table 1.
 
-    Handles formats like:
+    Examples:
 
     Zone Conditioning
     - 12408 1365
 
+    Return Fan Load
+    1173 CFM 0 -
+
     Ventilation Load
     63 CFM 1228 -1290
 
-    Supply Fan Load
-    1173 CFM 1739 -
+    Central Heating Coil
+    - 0 -
     """
 
-    match = re.search(
-        rf"{re.escape(label)}\s+"
+    pattern: str = (
+        rf"^{re.escape(label)}\s+"
         rf"(?:[-\d.]+\s*(?:CFM|sqft|W)?\s+)?"  # details
         rf"(-?\d+(?:\.\d+)?)\s+"               # sensible
-        rf"(-?\d+(?:\.\d+)?)",                # latent
+        rf"(-|-?\d+(?:\.\d+)?)"               # latent or dash
+    )
+
+    match = re.search(
+        pattern,
         text,
         re.MULTILINE
     )
@@ -77,15 +84,27 @@ def extract_system_load_values(
             None
         )
 
-    return (
-        clean_number(
-            match.group(1)
-        ),
-        clean_number(
-            match.group(2)
+    sensible: float | None = clean_number(
+        match.group(1)
+    )
+
+    latent_raw: str = (
+        match.group(2)
+    )
+
+    latent: float | None = (
+        0
+        if latent_raw == "-"
+        else clean_number(
+            latent_raw
         )
     )
 
+    return (
+        sensible,
+        latent
+    )
+    
 def extract_detail_values(
     text: str,
     label: str
@@ -167,6 +186,81 @@ def extract_detail_values(
         watts
     )
 
+def extract_table1CFM_values(
+    text: str,
+    label: str
+) -> tuple[
+    float | None,
+    float | None,
+    float | None
+]:
+    """
+    Extract CFM + sensible + latent
+    from Table 1 rows.
+
+    Example:
+
+    Ventilation Load
+    63 CFM
+    1228
+    -1290
+    """
+
+    match = re.search(
+        rf"{re.escape(label)}\s+"
+        rf"(\d+(?:\.\d+)?)\s*CFM\s+"
+        rf"(-?\d+(?:\.\d+)?|-)\s+"
+        rf"(-?\d+(?:\.\d+)?|-)",
+        text,
+        re.MULTILINE
+    )
+
+    if not match:
+
+        print(
+            f"Could not find "
+            f"Table 1 row: {label}"
+        )
+
+        return (
+            None,
+            None,
+            None
+        )
+
+    cfm: float | None = clean_number(
+        match.group(1)
+    )
+
+    sensible_raw: str = (
+        match.group(2)
+    )
+
+    latent_raw: str = (
+        match.group(3)
+    )
+
+    sensible: float | None = (
+        None
+        if sensible_raw == "-"
+        else clean_number(
+            sensible_raw
+        )
+    )
+
+    latent: float | None = (
+        None
+        if latent_raw == "-"
+        else clean_number(
+            latent_raw
+        )
+    )
+
+    return (
+        cfm,
+        sensible,
+        latent
+    )
 
 def extract_heat_balance_pdf(
     pdf_path_str: str,
@@ -281,25 +375,28 @@ def extract_heat_balance_pdf(
         )
 
         (
+            heat.return_fan_cfm,
             heat.return_fan_sensible_btu,
             heat.return_fan_latent_btu
-        ) = extract_system_load_values(
+        ) = extract_table1CFM_values(
             text,
             "Return Fan Load"
         )
 
         (
+            heat.ventilation_cfm,
             heat.ventilation_sensible_btu,
             heat.ventilation_latent_btu
-        ) = extract_system_load_values(
+        ) = extract_table1CFM_values(
             text,
             "Ventilation Load"
         )
 
         (
+            heat.supply_fan_cfm,
             heat.supply_fan_sensible_btu,
             heat.supply_fan_latent_btu
-        ) = extract_system_load_values(
+        ) = extract_table1CFM_values(
             text,
             "Supply Fan Load"
         )

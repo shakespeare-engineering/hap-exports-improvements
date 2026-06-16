@@ -230,6 +230,33 @@ def format_sheet(sheet) -> None:
         "F"
     ].width = 18
 
+    sheet.column_dimensions[
+        "K"
+    ].width = 30
+
+    for column in [
+        "j",
+        "k",
+        "L",
+        "M",
+        "N",
+        "O",
+        "P",
+        "Q",
+        "R"
+    ]:
+        sheet.column_dimensions[
+            column
+        ].width = 14
+
+    sheet.column_dimensions[
+        "S"
+    ].width = 18
+
+    sheet.column_dimensions[
+        "T"
+    ].width = 18
+
     # ======================================
     # Cooling load formatting only
     # ======================================
@@ -362,6 +389,277 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
             fgColor="ffb400"
         )
 
+        # ======================================
+        # Mechanical Equipment Table
+        # ======================================
+
+        equipment_start_col = 11  # K
+        equipment_row = 7
+
+        equipment_headers = [
+            "Space Name",
+            "MBH",
+            "% Of Total MBH",
+            "CFM",
+            "NERFED CFM",
+            "OA",
+            "Sqft",
+            "No. People",
+            "Required Outdoor AIR CFM/Person",
+            "Required Outdoor AIR CFM/sqft"
+        ]
+
+        # Header row
+        for col_offset, header in enumerate(
+            equipment_headers
+        ):
+
+            header_cell = sheet.cell(
+                row=equipment_row,
+                column=(
+                    equipment_start_col
+                    + col_offset
+                ),
+                value=header
+            )
+
+            header_cell.font = Font(
+                bold=True
+            )
+
+            header_cell.fill = PatternFill(
+                fill_type="solid",
+                fgColor="DDDDDD"
+            )
+
+            header_cell.alignment = Alignment(
+                horizontal="center",
+                vertical="center",
+                wrap_text=True
+            )
+
+        # Create a unit size cell based on data
+        sheet["J7"] = "Unit Size"
+        sheet["J7"].alignment = Alignment(horizontal="center")
+        sheet["J7"].fill = PatternFill(
+            fill_type="solid",
+            fgColor="DDDDDD"
+        )
+        sheet["J7"].font = Font(bold=True)
+
+        unit_tons_formula = "A57/E9"
+
+        sheet["J8"] = (
+            f'=IF({unit_tons_formula}<=0.75,0.75,'
+            f'IF({unit_tons_formula}<=1,1,'
+            f'IF({unit_tons_formula}<=1.25,1.25,'
+            f'IF({unit_tons_formula}<=1.5,1.5,'
+            f'IF({unit_tons_formula}<=2,2,'
+            f'IF({unit_tons_formula}<=3,3,'
+            f'IF({unit_tons_formula}<=4,4,'
+            f'IF({unit_tons_formula}<=5,5,'
+            f'IF({unit_tons_formula}<=6,6,'
+            f'IF({unit_tons_formula}<=7.5,7.5,'
+            f'IF({unit_tons_formula}<=8.5,8.5,'
+            f'IF({unit_tons_formula}<=10,10,'
+            f'IF({unit_tons_formula}<=12.5,12.5,'
+            f'IF({unit_tons_formula}<=15,15,'
+            f'IF({unit_tons_formula}<=17.5,17.5,'
+            f'IF({unit_tons_formula}<=20,20,'
+            f'IF({unit_tons_formula}<=25,25,'
+            f'IF({unit_tons_formula}<=27.5,27.5,'
+            f'{unit_tons_formula}))))))))))))))))))'
+        )
+
+        # Create a unit size cell based on data
+        sheet["J10"] = "Design CFM"
+        sheet["J10"].alignment = Alignment(horizontal="center")
+        sheet["J10"].fill = PatternFill(
+            fill_type="solid",
+            fgColor="DDDDDD"
+        )
+        sheet["J10"].font = Font(bold=True)
+        sheet["J11"] = "=J8*F9"
+
+        equipment_row += 1
+
+        equipment_start_row = equipment_row
+
+        # ======================================
+        # Space Rows
+        # ======================================
+
+        for zone in system.zones:
+
+            for space in zone.spaces:
+
+                # Mechanical Equipment Name
+                sheet.cell(
+                    row=equipment_row,
+                    column=11,
+                    value=space.name
+                )
+
+                # MBH
+                sheet.cell(
+                    row=equipment_row,
+                    column=12,
+                    value=(
+                        safe_number(
+                            space.cooling_latent_mbh + space.cooling_sensible_mbh
+                        )
+                    )
+                )
+
+                # % Of Total MBH
+                sheet.cell(
+                    row=equipment_row,
+                    column=13,
+                    value=f"=L{equipment_row}/L14"
+                )
+
+                # CFM
+                sheet.cell(
+                    row=equipment_row,
+                    column=14,
+                    value=f"=J11*M{equipment_row}"
+                )
+
+                # Nerfed CFM
+                sheet.cell(
+                    row=equipment_row,
+                    column=15,
+                    value=(
+                        f"=MROUND("
+                        f"N{equipment_row},"
+                        f"5)"
+                    )
+                )
+
+                # OA
+                sheet.cell(
+                    row=equipment_row,
+                    column=16,
+                    value=(
+                        safe_number(
+                            space.uncorrected_oa_cfm
+                        )
+                    )
+                )
+
+                # Sqft
+                sheet.cell(
+                    row=equipment_row,
+                    column=17,
+                    value=(
+                        safe_number(
+                            space.floor_area_sqft
+                        )
+                    )
+                )
+
+                # No. People
+                sheet.cell(
+                    row=equipment_row,
+                    column=18,
+                    value=(
+                        safe_number(
+                            space.maximum_occupants
+                        )
+                    )
+                )
+
+                # Required OA CFM/person
+                sheet.cell(
+                    row=equipment_row,
+                    column=19,
+                    value=(
+                        safe_number(
+                            space.oa_per_person
+                        )
+                    )
+                )
+
+                # Required OA CFM/sqft
+                sheet.cell(
+                    row=equipment_row,
+                    column=20,
+                    value=(
+                        safe_number(
+                            space.oa_per_sqft
+                        )
+                    )
+                )
+
+                equipment_row += 1
+
+
+        equipment_end_row = equipment_row - 1
+
+        sheet.cell(
+            row=equipment_row,
+            column=11,   
+            value="TOTAL"
+        )
+
+        # MBH
+        sheet.cell(
+            row=equipment_row,
+            column=12,   
+            value=f"=SUM(L{equipment_start_row}:L{equipment_end_row})"
+        )
+
+        # %
+        sheet.cell(
+            row=equipment_row,
+            column=13,  
+            value=f"=SUM(M{equipment_start_row}:M{equipment_end_row})"
+        )
+
+        # CFM
+        sheet.cell(
+            row=equipment_row,
+            column=14,  
+            value=f"=SUM(N{equipment_start_row}:N{equipment_end_row})"
+        )
+
+        # Nerfed CFM
+        sheet.cell(
+            row=equipment_row,
+            column=15,  
+            value=f"=SUM(O{equipment_start_row}:O{equipment_end_row})"
+        )
+
+        # OA
+        sheet.cell(
+            row=equipment_row,
+            column=16,  
+            value=f"=SUM(P{equipment_start_row}:P{equipment_end_row})"
+        )
+
+        # Sqft
+        sheet.cell(
+            row=equipment_row,
+            column=17,  
+            value=f"=SUM(Q{equipment_start_row}:Q{equipment_end_row})"
+        )
+
+        # People
+        sheet.cell(
+            row=equipment_row,
+            column=18,  
+            value=f"=SUM(R{equipment_start_row}:R{equipment_end_row})"
+        )
+
+        # Bold the whole row
+        for col in range(11, 30):
+
+            sheet.cell(
+                row=equipment_row,
+                column=col
+            ).font = Font(
+                bold=True
+            )
 
         # Set the initial row
         row = 7

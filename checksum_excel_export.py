@@ -267,6 +267,9 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
     # Remove the default sheet
     workbook.remove(workbook.active)
 
+    # First sheet will be the master sheet
+    master_sheet_name = None
+
     for system in systems.values():
 
         sheet = (workbook.create_sheet(title=clean_sheet_name(system.name)))
@@ -299,6 +302,66 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
         sheet["A2"].font = Font(
             italic=True
         )
+
+        # ======================================
+        # Global Parameters
+        # ======================================
+
+        sheet["E8"] = (
+            "Unit Efficacy"
+        )
+
+        sheet["F8"] = (
+            "CFM/Ton"
+        )
+
+        # First sheet becomes master
+        if master_sheet_name is None:
+
+            master_sheet_name = (
+                sheet.title
+            )
+
+            sheet["E9"] = 0.90
+            sheet["F9"] = 400
+
+        else:
+
+            sheet["E9"] = (
+                f"='{master_sheet_name}'!F4"
+            )
+
+            sheet["F9"] = (
+                f"='{master_sheet_name}'!F5"
+            )
+
+        # Formatting
+        sheet["E9"].number_format = (
+            '0%'
+        )
+
+        sheet["F9"].number_format = (
+            '0'
+        )
+
+        sheet["E8"].alignment = Alignment(
+            horizontal="center"
+        )
+
+        sheet["F8"].alignment = Alignment(
+            horizontal="center"
+        )
+
+        sheet["E8"].fill = PatternFill(
+            fill_type="solid",
+            fgColor="ffb400"
+        )
+
+        sheet["F8"].fill = PatternFill(
+            fill_type="solid",
+            fgColor="ffb400"
+        )
+
 
         # Set the initial row
         row = 7

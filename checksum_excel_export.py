@@ -52,6 +52,21 @@ def add_section_header(
     return row + 1
 
 
+def add_table_column_titles(sheet, row: int, titles: list[str]) -> int:
+    """
+    Add column titles for the table.
+    """
+
+    for i, title in enumerate(titles, start=1):
+        sheet.cell(
+            row=row,
+            column=i,
+            value=title
+        ).alignment = Alignment(horizontal="center")
+
+    return row + 1
+
+
 def add_load_row(
     sheet,
     row: int,
@@ -101,23 +116,22 @@ def add_load_row(
             f"{detail_value:,.0f}"
         )
 
-        if detail_units:
-            detail_text += (
-                f" {detail_units}"
-            )
-
         detail_cell = sheet.cell(
             row=row,
             column=6,
-            value=detail_text
+            value=detail_value
         )
+
+        if detail_units:
+            detail_cell.number_format = (
+                f'#,##0 "{detail_units}"'
+            )
 
         detail_cell.alignment = Alignment(
             horizontal="right"
         )
 
     return row + 1
-
 
 
 def add_subtotal_row(
@@ -169,9 +183,7 @@ def add_subtotal_row(
     return row + 2
 
 
-def format_sheet(
-    sheet
-) -> None:
+def format_sheet(sheet) -> None:
     """
     Apply formatting.
     """
@@ -197,18 +209,29 @@ def format_sheet(
         "F"
     ].width = 18
 
-    for column in [
-        "B",
-        "C",
-        "D"
-    ]:
-        for cell in sheet[column]:
-            cell.number_format = (
+    # ======================================
+    # Cooling load formatting only
+    # ======================================
+
+    for row in range(1, 200):
+
+        # Sensible / Latent / Total
+        for column in [
+            "B",
+            "C",
+            "D"
+        ]:
+
+            sheet[
+                f"{column}{row}"
+            ].number_format = (
                 '#,##0'
             )
 
-    for cell in sheet["E"]:
-        cell.number_format = (
+        # Percent column
+        sheet[
+            f"E{row}"
+        ].number_format = (
             '0.0%'
         )
 
@@ -323,49 +346,17 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
             )
         )
 
-        header_cell = sheet.cell(
-            row=row,
-            column=1,
-            value="Item"
-        )
-        header_cell.alignment = Alignment(horizontal="center")
+        titles = [
+            "Item",
+            "Sensible",
+            "Latent",
+            "Total Load",
+            "% Total Load",
+            "Details"
+        ]
+        row = add_table_column_titles(sheet, row, titles)
 
-        header_cell = sheet.cell(
-            row=row,
-            column=2,
-            value="Sensible"
-        )
-        header_cell.alignment = Alignment(horizontal="center")
-
-        header_cell = sheet.cell(
-            row=row,
-            column=3,
-            value="Latent"
-        )
-        header_cell.alignment = Alignment(horizontal="center")
-
-        header_cell = sheet.cell(
-            row=row,
-            column=4,
-            value="Total Load"
-        )
-        header_cell.alignment = Alignment(horizontal="center")
-
-        header_cell = sheet.cell(
-            row=row,
-            column=5,
-            value="% Total Load"
-        )
-        header_cell.alignment = Alignment(horizontal="center")
-
-        header_cell = sheet.cell(
-            row=row,
-            column=6,
-            value="Details"
-        )
-        header_cell.alignment = Alignment(horizontal="center")
-
-        row += 2
+        row += 1
 
         # Keep track of rows that need to be formatted as percentages
         percent_rows: list[int] = []
@@ -814,8 +805,113 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
                 )
             )
 
+        # ======================================
+        # Engineering Checks
+        # ======================================
+        row += 2
+
+        row = add_section_header(
+            sheet,
+            row,
+            "Engineering Checks"
+        )
+
+        titles = [
+            "Tons",
+            "cfm/ft^2",
+            "cfm/ton",
+            "ft^2/ton",
+            "No. People",
+            "[extra]"
+        ]
+        row = add_table_column_titles(sheet, row, titles)
+
+        # Tons
+        sheet.cell(
+            row=row,
+            column=1,
+            value=f"=D{row-4}/(12*1000)"
+        )
+
+        # cfm/ft^2
+        sheet.cell(
+            row=row,
+            column=2,
+            value=f"=F{row-13}/F22"
+        )
+
+        # cfm/ton
+        sheet.cell(
+            row=row,
+            column=3,
+            value=f"=F{row-13}/A{row}"
+        )
+
+        # ft^2/ton
+        sheet.cell(
+            row=row,
+            column=4,
+            value=f"=F21/(A{row})"
+        )
+
+        # No. People
+        sheet.cell(
+            row=row,
+            column=5,
+            value="=F27"
+        )
+
         format_sheet(sheet)
 
+        # ======================================
+        # Engineering Check Formatting
+        # ======================================
+
+        # Tons
+        sheet.cell(
+            row=row,
+            column=1
+        ).number_format = (
+            '0.00'
+        )
+
+        # cfm/ft²
+        sheet.cell(
+            row=row,
+            column=2
+        ).number_format = (
+            '0.00'
+        )
+
+        # cfm/ton
+        sheet.cell(
+            row=row,
+            column=3
+        ).number_format = (
+            '0'
+        )
+
+        # ft²/ton
+        sheet.cell(
+            row=row,
+            column=4
+        ).number_format = (
+            '0'
+        )
+
+        # People
+        sheet.cell(
+            row=row,
+            column=5
+        ).number_format = (
+            '0'
+        )
+
+
+        
+    # ======================================
+    # Exportation
+    # ======================================
     workbook.save(Path(output_path))
 
     print("\nSaved workbook:")

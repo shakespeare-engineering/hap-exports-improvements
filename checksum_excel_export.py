@@ -933,8 +933,36 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
     # ======================================
     # Exportation
     # ======================================
-    workbook.save(Path(output_path))
+
+    # Get project name from first system
+    project_name = next(
+        iter(systems.values())
+    ).project_name
+
+    # Clean filename
+    invalid_chars = '<>:"/\\|?*'
+
+    for char in invalid_chars:
+        project_name = project_name.replace(
+            char,
+            "-"
+        )
+
+    project_name = project_name.strip()
+
+    # Build output filename
+    output_path = Path(output_path)
+
+    final_output_path = (
+        output_path.parent
+        /
+        f"{project_name} - System Checksums.xlsx"
+    )
+
+    workbook.save(
+        final_output_path
+    )
 
     print("\nSaved workbook:")
 
-    print(output_path)
+    print(final_output_path)

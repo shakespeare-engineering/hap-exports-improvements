@@ -213,35 +213,21 @@ def format_sheet(
         )
 
 
-def export_system_checksums(
-    systems: dict[str, AirSystem],
-    output_path: str | Path
-) -> None:
+def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Path) -> None:
     """
     Export checksum workbook.
     """
 
-    workbook: Workbook = (
-        Workbook()
-    )
+    workbook: Workbook = (Workbook())
 
-    workbook.remove(
-        workbook.active
-    )
+    # Remove the default sheet
+    workbook.remove(workbook.active)
 
     for system in systems.values():
 
-        sheet = (
-            workbook.create_sheet(
-                title=(
-                    system.name[:31]
-                )
-            )
-        )
+        sheet = (workbook.create_sheet(title=(system.name[:31])))
 
-        heat = (
-            system.heat_balance
-        )
+        heat = (system.heat_balance)
 
         row: int = 1
 
@@ -249,29 +235,17 @@ def export_system_checksums(
         # Title
         # ======================================
 
-        sheet["A1"] = (
-            "System Checksums"
-        )
+        sheet["A1"] = ("System Checksums")
 
-        sheet["A2"] = (
-            "Shakespeare Engineering"
-        )
+        sheet["A2"] = ("Shakespeare Engineering")
 
-        sheet["A4"] = (
-            "Project"
-        )
+        sheet["A4"] = ("Project")
 
-        sheet["B4"] = (
-            system.project_name
-        )
+        sheet["B4"] = (system.project_name)
 
-        sheet["A5"] = (
-            "System Name"
-        )
+        sheet["A5"] = ("System Name")
 
-        sheet["B5"] = (
-            system.name
-        )
+        sheet["B5"] = (system.name)
 
         sheet["A1"].font = Font(
             bold=True,
@@ -282,6 +256,7 @@ def export_system_checksums(
             italic=True
         )
 
+        # Set the initial row
         row = 7
 
         # ======================================
@@ -301,13 +276,10 @@ def export_system_checksums(
             column=1,
             value="Peak Time"
         )
-
         sheet.cell(
             row=row,
             column=2,
-            value=(
-                heat.cooling_design_time
-            )
+            value= heat.cooling_design_time
         )
 
         row += 1
@@ -317,13 +289,10 @@ def export_system_checksums(
             column=1,
             value="Outside Air DB"
         )
-
         sheet.cell(
             row=row,
             column=2,
-            value=(
-                heat.cooling_oa_db_f
-            )
+            value=(heat.cooling_oa_db_f)
         )
 
         row += 1
@@ -337,9 +306,7 @@ def export_system_checksums(
         sheet.cell(
             row=row,
             column=2,
-            value=(
-                heat.cooling_oa_wb_f
-            )
+            value= heat.cooling_oa_wb_f
         )
 
         row += 2
@@ -356,70 +323,51 @@ def export_system_checksums(
             )
         )
 
-        headers_row = row
-
         header_cell = sheet.cell(
             row=row,
             column=1,
             value="Item"
         )
-
-        header_cell.alignment = Alignment(
-            horizontal="center"
-        )
+        header_cell.alignment = Alignment(horizontal="center")
 
         header_cell = sheet.cell(
             row=row,
             column=2,
             value="Sensible"
         )
-
-        header_cell.alignment = Alignment(
-            horizontal="center"
-        )
+        header_cell.alignment = Alignment(horizontal="center")
 
         header_cell = sheet.cell(
             row=row,
             column=3,
             value="Latent"
         )
-
-        header_cell.alignment = Alignment(
-            horizontal="center"
-        )
+        header_cell.alignment = Alignment(horizontal="center")
 
         header_cell = sheet.cell(
             row=row,
             column=4,
             value="Total Load"
         )
-
-        header_cell.alignment = Alignment(
-            horizontal="center"
-        )
+        header_cell.alignment = Alignment(horizontal="center")
 
         header_cell = sheet.cell(
             row=row,
             column=5,
             value="% Total Load"
         )
-
-        header_cell.alignment = Alignment(
-            horizontal="center"
-        )
+        header_cell.alignment = Alignment(horizontal="center")
 
         header_cell = sheet.cell(
             row=row,
             column=6,
             value="Details"
         )
-
-        header_cell.alignment = Alignment(
-            horizontal="center"
-        )
+        header_cell.alignment = Alignment(horizontal="center")
 
         row += 2
 
+        # Keep track of rows that need to be formatted as percentages
         percent_rows: list[int] = []
 
         # ======================================
@@ -432,6 +380,7 @@ def export_system_checksums(
             "Envelope Loads"
         )
 
+        # Keep track of starting row for percentage formatting
         start_row = row
 
         row = add_load_row(
@@ -766,6 +715,9 @@ def export_system_checksums(
         # HAP Totals
         # ======================================
 
+        start_row = row
+
+
         row = add_section_header(
             sheet,
             row,
@@ -804,39 +756,38 @@ def export_system_checksums(
             heat.total_conditioning_latent_btu
         )
 
+        end_row = row - 1
+
+        percent_rows.extend(
+            range(
+                start_row,
+                end_row + 1
+            )
+        )
+
         # ======================================
         # Grand Total
         # ======================================
 
-        grand_total_row = (
-            row + 2
-        )
-
         sheet.cell(
-            row=grand_total_row,
+            row=row,
             column=1,
             value="Grand Total"
         )
 
         sheet.cell(
-            row=grand_total_row,
+            row=row,
             column=4,
-            value=(
-                f"=D52"
-            )
+            value=f"=D{row - 3}"
         )
 
         sheet[
-            f"A{grand_total_row}"
-        ].font = Font(
-            bold=True
-        )
+            f"A{row}"
+        ].font = Font(bold=True)
 
         sheet[
-            f"D{grand_total_row}"
-        ].font = Font(
-            bold=True
-        )
+            f"D{row}"
+        ].font = Font(bold=True)
 
         # ======================================
         # % Total Formulas
@@ -859,34 +810,14 @@ def export_system_checksums(
                 column=5,
                 value=(
                     f"=D{percent_row}"
-                    f"/D{52}"
+                    f"/D{row}"
                 )
             )
 
-        for percent_row in (
-            [ 49, 50, 51, 52, 55]
-        ):
-            sheet.cell(
-                row=percent_row,
-                column=5,
-                value=(
-                    f"=D{percent_row}"
-                    f"/D{52}"
-                )
-            )
+        format_sheet(sheet)
 
-        format_sheet(
-            sheet
-        )
+    workbook.save(Path(output_path))
 
-    workbook.save(
-        Path(output_path)
-    )
+    print("\nSaved workbook:")
 
-    print(
-        "\nSaved workbook:"
-    )
-
-    print(
-        output_path
-    )
+    print(output_path)

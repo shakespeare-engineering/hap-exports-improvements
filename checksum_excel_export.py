@@ -228,10 +228,18 @@ def export_system_checksums(
         )
 
         sheet["A4"] = (
-            "System Name"
+            "Project Name"
         )
 
         sheet["B4"] = (
+            system.project_name
+        )
+
+        sheet["A5"] = (
+            "System Name"
+        )
+
+        sheet["B5"] = (
             system.name
         )
 
@@ -244,7 +252,7 @@ def export_system_checksums(
             italic=True
         )
 
-        row = 6
+        row = 7
 
         # ======================================
         # Cooling Conditions
@@ -722,7 +730,7 @@ def export_system_checksums(
             row=grand_total_row,
             column=4,
             value=(
-                f"=D51"
+                f"=D52"
             )
         )
 
@@ -742,27 +750,36 @@ def export_system_checksums(
         # % Total Formulas
         # ======================================
 
-        for percent_row in (
-            percent_rows
-        ):
+        for percent_row in percent_rows:
+
+            # Skip merged rows
+            if (
+                sheet.cell(
+                    row=percent_row,
+                    column=5
+                ).__class__.__name__
+                == "MergedCell"
+            ):
+                continue
+
             sheet.cell(
                 row=percent_row,
                 column=5,
                 value=(
                     f"=D{percent_row}"
-                    f"/D{51}"
+                    f"/D{52}"
                 )
             )
 
         for percent_row in (
-            [48, 49, 50, 51, 54]
+            [ 49, 50, 51, 52, 55]
         ):
             sheet.cell(
                 row=percent_row,
                 column=5,
                 value=(
                     f"=D{percent_row}"
-                    f"/D{51}"
+                    f"/D{52}"
                 )
             )
 

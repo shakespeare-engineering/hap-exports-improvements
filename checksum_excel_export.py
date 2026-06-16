@@ -3,6 +3,7 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from openpyxl.styles import PatternFill
+from openpyxl.styles import Alignment
 
 from models.air_system import AirSystem
 
@@ -30,7 +31,7 @@ def add_section_header(
         start_row=row,
         start_column=1,
         end_row=row,
-        end_column=5
+        end_column=6
     )
 
     cell = sheet.cell(
@@ -56,7 +57,9 @@ def add_load_row(
     row: int,
     label: str,
     sensible: float | None,
-    latent: float | None
+    latent: float | None,
+    detail_value: float | None = None,
+    detail_units: str | None = None
 ) -> int:
     """
     Add load row using Excel formulas.
@@ -91,7 +94,30 @@ def add_load_row(
         value=f"=B{row}+C{row}"
     )
 
+    # Details
+    if detail_value is not None:
+
+        detail_text: str = (
+            f"{detail_value:,.0f}"
+        )
+
+        if detail_units:
+            detail_text += (
+                f" {detail_units}"
+            )
+
+        detail_cell = sheet.cell(
+            row=row,
+            column=6,
+            value=detail_text
+        )
+
+        detail_cell.alignment = Alignment(
+            horizontal="right"
+        )
+
     return row + 1
+
 
 
 def add_subtotal_row(
@@ -167,6 +193,10 @@ def format_sheet(
         "E"
     ].width = 12
 
+    sheet.column_dimensions[
+        "F"
+    ].width = 18
+
     for column in [
         "B",
         "C",
@@ -228,7 +258,7 @@ def export_system_checksums(
         )
 
         sheet["A4"] = (
-            "Project Name"
+            "Project"
         )
 
         sheet["B4"] = (
@@ -328,34 +358,64 @@ def export_system_checksums(
 
         headers_row = row
 
-        sheet.cell(
+        header_cell = sheet.cell(
             row=row,
             column=1,
             value="Item"
         )
 
-        sheet.cell(
+        header_cell.alignment = Alignment(
+            horizontal="center"
+        )
+
+        header_cell = sheet.cell(
             row=row,
             column=2,
             value="Sensible"
         )
 
-        sheet.cell(
+        header_cell.alignment = Alignment(
+            horizontal="center"
+        )
+
+        header_cell = sheet.cell(
             row=row,
             column=3,
             value="Latent"
         )
 
-        sheet.cell(
-            row=row,
-            column=4,
-            value="Total"
+        header_cell.alignment = Alignment(
+            horizontal="center"
         )
 
-        sheet.cell(
+        header_cell = sheet.cell(
+            row=row,
+            column=4,
+            value="Total Load"
+        )
+
+        header_cell.alignment = Alignment(
+            horizontal="center"
+        )
+
+        header_cell = sheet.cell(
             row=row,
             column=5,
-            value="% Total"
+            value="% Total Load"
+        )
+
+        header_cell.alignment = Alignment(
+            horizontal="center"
+        )
+
+        header_cell = sheet.cell(
+            row=row,
+            column=6,
+            value="Details"
+        )
+
+        header_cell.alignment = Alignment(
+            horizontal="center"
         )
 
         row += 2
@@ -379,7 +439,9 @@ def export_system_checksums(
             row,
             "Wall",
             heat.wall_btu,
-            None
+            None,
+            heat.wall_sqft,
+            "sqft"
         )
 
         row = add_load_row(
@@ -387,7 +449,9 @@ def export_system_checksums(
             row,
             "Roof",
             heat.roof_btu,
-            None
+            None,
+            heat.roof_sqft,
+            "sqft"
         )
 
         row = add_load_row(
@@ -395,7 +459,9 @@ def export_system_checksums(
             row,
             "Window",
             heat.window_btu,
-            None
+            None,
+            heat.window_sqft,
+            "sqft"
         )
 
         row = add_load_row(
@@ -403,7 +469,9 @@ def export_system_checksums(
             row,
             "Skylight",
             heat.skylight_btu,
-            None
+            None,
+            heat.skylight_sqft,
+            "sqft"
         )
 
         row = add_load_row(
@@ -411,7 +479,9 @@ def export_system_checksums(
             row,
             "Door",
             heat.door_btu,
-            None
+            None,
+            heat.door_sqft,
+            "sqft"
         )
 
         row = add_load_row(
@@ -419,7 +489,9 @@ def export_system_checksums(
             row,
             "Floor",
             heat.floor_btu,
-            None
+            None,
+            heat.floor_sqft,
+            "sqft"
         )
 
         row = add_load_row(
@@ -427,7 +499,9 @@ def export_system_checksums(
             row,
             "Interior Wall",
             heat.interior_wall_btu,
-            None
+            None,
+            heat.interior_wall_sqft,
+            "sqft"
         )
 
         row = add_load_row(
@@ -435,7 +509,9 @@ def export_system_checksums(
             row,
             "Ceiling",
             heat.ceiling_btu,
-            None
+            None,
+            heat.ceiling_sqft,
+            "sqft"
         )
 
         end_row = row - 1
@@ -478,7 +554,9 @@ def export_system_checksums(
             row,
             "People",
             heat.people_sensible_btu,
-            heat.people_latent_btu
+            heat.people_latent_btu,
+            heat.people_count,
+            "people"
         )
 
         row = add_load_row(
@@ -486,7 +564,9 @@ def export_system_checksums(
             row,
             "Infiltration",
             heat.infiltration_sensible_btu,
-            heat.infiltration_latent_btu
+            heat.infiltration_latent_btu,
+            heat.infiltration_cfm,
+            "CFM"
         )
 
         row = add_load_row(
@@ -545,7 +625,9 @@ def export_system_checksums(
             row,
             "Overhead Lighting",
             heat.overhead_lighting_btu,
-            None
+            None,
+            heat.overhead_lighting_watts,
+            "W"
         )
 
         row = add_load_row(
@@ -553,7 +635,9 @@ def export_system_checksums(
             row,
             "Task Lighting",
             heat.task_lighting_btu,
-            None
+            None,
+            heat.task_lighting_watts,
+            "W"
         )
 
         row = add_load_row(
@@ -561,7 +645,9 @@ def export_system_checksums(
             row,
             "Equipment",
             heat.equipment_btu,
-            None
+            None,
+            heat.equipment_watts,
+            "W"
         )
 
         end_row = row - 1
@@ -620,7 +706,9 @@ def export_system_checksums(
             row,
             "Return Fan Load",
             heat.return_fan_sensible_btu,
-            heat.return_fan_latent_btu
+            heat.return_fan_latent_btu,
+            heat.return_fan_cfm,
+            "CFM"
         )
 
         row = add_load_row(
@@ -628,7 +716,9 @@ def export_system_checksums(
             row,
             "Ventilation Load",
             heat.ventilation_sensible_btu,
-            heat.ventilation_latent_btu
+            heat.ventilation_latent_btu,
+            heat.ventilation_cfm,
+            "CFM"
         )
 
         row = add_load_row(
@@ -636,7 +726,9 @@ def export_system_checksums(
             row,
             "Supply Fan Load",
             heat.supply_fan_sensible_btu,
-            heat.supply_fan_latent_btu
+            heat.supply_fan_latent_btu,
+            heat.return_fan_cfm,
+            "CFM"
         )
 
         row = add_load_row(

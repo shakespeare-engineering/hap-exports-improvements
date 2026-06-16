@@ -196,8 +196,11 @@ def add_subtotal_row(
         value=f"=B{row}+C{row}"
     )
 
-    for cell in sheet[row]:
-        cell.font = Font(
+    for col in range(1, 7):  # A through F
+        sheet.cell(
+            row=row,
+            column=col
+        ).font = Font(
             bold=True
         )
 
@@ -355,11 +358,11 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
         else:
 
             sheet["E9"] = (
-                f"='{master_sheet_name}'!F4"
+                f"='{master_sheet_name}'!E9"
             )
 
             sheet["F9"] = (
-                f"='{master_sheet_name}'!F5"
+                f"='{master_sheet_name}'!F9"
             )
 
         # Formatting
@@ -511,12 +514,7 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
                     )
                 )
 
-                # % Of Total MBH
-                sheet.cell(
-                    row=equipment_row,
-                    column=13,
-                    value=f"=L{equipment_row}/L14"
-                )
+                # % Of Total MBH (Needs calculation after loop)
 
                 # CFM
                 sheet.cell(
@@ -608,6 +606,36 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
             column=12,   
             value=f"=SUM(L{equipment_start_row}:L{equipment_end_row})"
         )
+
+        # ======================================
+        # % of Total MBH formulas
+        # ======================================
+
+        for space_row in range(
+            equipment_start_row,
+            equipment_end_row + 1
+        ):
+
+            sheet.cell(
+                row=space_row,
+                column=13,
+                value=(
+                    f"=L{space_row}"
+                    f"/L{equipment_row}"
+                )
+            ).number_format = "0.0%"
+
+        # Total row should equal 100%
+        sheet.cell(
+            row=equipment_row,
+            column=13,
+            value=1
+        )
+
+        sheet.cell(
+            row=equipment_row,
+            column=13
+        ).number_format = "0.0%"
 
         # %
         sheet.cell(

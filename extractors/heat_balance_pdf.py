@@ -12,6 +12,7 @@ def clean_number(value: str | None) -> float | None:
     except Exception:
         return None
 
+
 def extract_row_values(
     text: str,
     label: str
@@ -32,6 +33,7 @@ def extract_row_values(
         clean_number(match.group(2))
     ) if match else (None, None)
 
+
 def extract_system_load_values(
     text: str,
     label: str
@@ -42,27 +44,13 @@ def extract_system_load_values(
     """
     Extract cooling sensible + latent
     values from Table 1.
-
-    Examples:
-
-    Zone Conditioning
-    - 12408 1365
-
-    Return Fan Load
-    1173 CFM 0 -
-
-    Ventilation Load
-    63 CFM 1228 -1290
-
-    Central Heating Coil
-    - 0 -
     """
 
     pattern: str = (
         rf"^{re.escape(label)}\s+"
-        rf"(?:[-\d.]+\s*(?:CFM|sqft|W)?\s+)?"  # details
-        rf"(-?\d+(?:\.\d+)?)\s+"               # sensible
-        rf"(-|-?\d+(?:\.\d+)?)"               # latent or dash
+        rf"(?:[-\d.]+\s*(?:CFM|sqft|W)?\s+)?"
+        rf"(-?\d+(?:\.\d+)?)\s+"
+        rf"(-|-?\d+(?:\.\d+)?)"
     )
 
     match = re.search(
@@ -72,12 +60,6 @@ def extract_system_load_values(
     )
 
     if not match:
-
-        print(
-            f"Could not find "
-            f"Table 1 row: {label}"
-        )
-
         return (
             None,
             None
@@ -103,7 +85,8 @@ def extract_system_load_values(
         sensible,
         latent
     )
-    
+
+
 def extract_detail_values(
     text: str,
     label: str
@@ -113,25 +96,8 @@ def extract_detail_values(
     float | None
 ]:
     """
-    Extract cooling-side detail rows from
-    Table 2.
-
-    Examples:
-
-    Exterior Wall Convection
-    1269 sqft
-    4916
-    -
-
-    Overhead Lighting Convection
-    331 W
-    501
-    -
-
-    Electric Equipment Convection
-    1928 W
-    4933
-    -
+    Extract cooling-side detail rows
+    from Table 2.
     """
 
     match = re.search(
@@ -144,11 +110,6 @@ def extract_detail_values(
     )
 
     if not match:
-
-        print(
-            f"Could not find: {label}"
-        )
-
         return (
             None,
             None,
@@ -185,6 +146,7 @@ def extract_detail_values(
         watts
     )
 
+
 def extract_table1CFM_values(
     text: str,
     label: str
@@ -196,13 +158,6 @@ def extract_table1CFM_values(
     """
     Extract CFM + sensible + latent
     from Table 1 rows.
-
-    Example:
-
-    Ventilation Load
-    63 CFM
-    1228
-    -1290
     """
 
     match = re.search(
@@ -215,12 +170,6 @@ def extract_table1CFM_values(
     )
 
     if not match:
-
-        print(
-            f"Could not find "
-            f"Table 1 row: {label}"
-        )
-
         return (
             None,
             None,
@@ -261,6 +210,7 @@ def extract_table1CFM_values(
         latent
     )
 
+
 def extract_heat_balance_pdf(
     pdf_path_str: str,
     systems: dict[str, AirSystem]
@@ -269,8 +219,8 @@ def extract_heat_balance_pdf(
     pdf_path: Path = Path(pdf_path_str)
 
     print(
-        f"\nReading heat balance PDF: "
-        f"{pdf_path.name}"
+        f"\nReading heat balance PDF:\n"
+        f"  {pdf_path.name}"
     )
 
     reader: PdfReader = PdfReader(pdf_path)
@@ -302,13 +252,20 @@ def extract_heat_balance_pdf(
         if system_name not in systems:
 
             print(
-                f"[WARNING] Skipping unmatched system:\n"
-                f"  {system_name}"
+                f"\n[WARNING] Skipping unmatched system:"
+                f"\n  {system_name}"
             )
+
             continue
 
-        system: AirSystem = systems[system_name]
+        system: AirSystem = systems[
+            system_name
+        ]
+
         heat = system.heat_balance
+
+        missing_table1: list[str] = []
+        missing_table2: list[str] = []
 
         # ==================================================
         # Design Conditions
@@ -353,196 +310,143 @@ def extract_heat_balance_pdf(
             )
 
         # ==================================================
-        # Table 1 - System Loads
+        # TABLE 1
         # ==================================================
 
-        (
-            heat.zone_conditioning_sensible_btu,
-            heat.zone_conditioning_latent_btu
-        ) = extract_system_load_values(
-            text,
-            "Zone Conditioning"
-        )
+        table1_rows = [
+            ("Zone Conditioning", "zone_conditioning"),
+            ("Plenum Load", "plenum_load"),
+            ("Zone Fan Coil Fans Load", "zone_fan_coils"),
+            (">> Total System Loads", "total_system"),
+            ("Central Cooling Coil", "central_cooling_coil"),
+            ("Central Heating Coil", "central_heating_coil"),
+            (">> Total Conditioning", "total_conditioning")
+        ]
 
-        (
-            heat.plenum_load_sensible_btu,
-            heat.plenum_load_latent_btu
-        ) = extract_system_load_values(
-            text,
-            "Plenum Load"
-        )
+        for label, attr in table1_rows:
 
-        (
-            heat.return_fan_cfm,
-            heat.return_fan_sensible_btu,
-            heat.return_fan_latent_btu
-        ) = extract_table1CFM_values(
-            text,
-            "Return Fan Load"
-        )
+            sensible, latent = (
+                extract_system_load_values(
+                    text,
+                    label
+                )
+            )
 
-        (
-            heat.ventilation_cfm,
-            heat.ventilation_sensible_btu,
-            heat.ventilation_latent_btu
-        ) = extract_table1CFM_values(
-            text,
-            "Ventilation Load"
-        )
+            setattr(
+                heat,
+                f"{attr}_sensible_btu",
+                sensible
+            )
 
-        (
-            heat.supply_fan_cfm,
-            heat.supply_fan_sensible_btu,
-            heat.supply_fan_latent_btu
-        ) = extract_table1CFM_values(
-            text,
-            "Supply Fan Load"
-        )
+            setattr(
+                heat,
+                f"{attr}_latent_btu",
+                latent
+            )
 
-        (
-            heat.zone_fan_coils_sensible_btu,
-            heat.zone_fan_coils_latent_btu
-        ) = extract_system_load_values(
-            text,
-            "Zone Fan Coil Fans Load"
-        )
+            if (
+                sensible is None
+                and latent is None
+            ):
+                missing_table1.append(
+                    label
+                )
 
-        (
-            heat.total_system_sensible_btu,
-            heat.total_system_latent_btu
-        ) = extract_system_load_values(
-            text,
-            ">> Total System Loads"
-        )
+        cfm_rows = [
+            ("Return Fan Load", "return_fan"),
+            ("Ventilation Load", "ventilation"),
+            ("Supply Fan Load", "supply_fan")
+        ]
 
-        (
-            heat.central_cooling_coil_sensible_btu,
-            heat.central_cooling_coil_latent_btu
-        ) = extract_system_load_values(
-            text,
-            "Central Cooling Coil"
-        )
+        for label, attr in cfm_rows:
 
-        (
-            heat.central_heating_coil_sensible_btu,
-            heat.central_heating_coil_latent_btu
-        ) = extract_system_load_values(
-            text,
-            "Central Heating Coil"
-        )
+            cfm, sensible, latent = (
+                extract_table1CFM_values(
+                    text,
+                    label
+                )
+            )
 
-        (
-            heat.total_conditioning_sensible_btu,
-            heat.total_conditioning_latent_btu
-        ) = extract_system_load_values(
-            text,
-            ">> Total Conditioning"
-        )
+            setattr(
+                heat,
+                f"{attr}_cfm",
+                cfm
+            )
+
+            setattr(
+                heat,
+                f"{attr}_sensible_btu",
+                sensible
+            )
+
+            setattr(
+                heat,
+                f"{attr}_latent_btu",
+                latent
+            )
+
+            if (
+                cfm is None
+                and sensible is None
+            ):
+                missing_table1.append(
+                    label
+                )
 
         # ==================================================
-        # Table 2 - Zone Heat Balance
+        # TABLE 2
         # ==================================================
 
-        (
-            heat.wall_btu,
-            heat.wall_sqft,
-            heat.wall_watts
-        ) = extract_detail_values(
-            text,
-            "Exterior Wall Convection"
-        )
+        detail_rows = [
+            ("Exterior Wall Convection", "wall"),
+            ("Roof Convection", "roof"),
+            ("Window Convection", "window"),
+            ("Skylight Convection", "skylight"),
+            ("Door Convection", "door"),
+            ("Floor Convection", "floor"),
+            ("Interior Wall Convection", "interior_wall"),
+            ("Ceiling Convection", "ceiling"),
+            ("Overhead Lighting Convection", "overhead_lighting"),
+            ("Task Lighting Convection", "task_lighting"),
+            ("Electric Equipment Convection", "equipment")
+        ]
 
-        (
-            heat.roof_btu,
-            heat.roof_sqft,
-            heat.roof_watts
-        ) = extract_detail_values(
-            text,
-            "Roof Convection"
-        )
+        for label, attr in detail_rows:
 
-        (
-            heat.window_btu,
-            heat.window_sqft,
-            heat.window_watts
-        ) = extract_detail_values(
-            text,
-            "Window Convection"
-        )
+            btu, sqft, watts = (
+                extract_detail_values(
+                    text,
+                    label
+                )
+            )
 
-        (
-            heat.skylight_btu,
-            heat.skylight_sqft,
-            heat.skylight_watts
-        ) = extract_detail_values(
-            text,
-            "Skylight Convection"
-        )
+            setattr(
+                heat,
+                f"{attr}_btu",
+                btu
+            )
 
-        (
-            heat.door_btu,
-            heat.door_sqft,
-            heat.door_watts
-        ) = extract_detail_values(
-            text,
-            "Door Convection"
-        )
+            setattr(
+                heat,
+                f"{attr}_sqft",
+                sqft
+            )
 
-        (
-            heat.floor_btu,
-            heat.floor_sqft,
-            heat.floor_watts
-        ) = extract_detail_values(
-            text,
-            "Floor Convection"
-        )
+            setattr(
+                heat,
+                f"{attr}_watts",
+                watts
+            )
 
-        (
-            heat.interior_wall_btu,
-            heat.interior_wall_sqft,
-            heat.interior_wall_watts
-        ) = extract_detail_values(
-            text,
-            "Interior Wall Convection"
-        )
+            if btu is None:
+                missing_table2.append(
+                    label
+                )
 
-        (
-            heat.ceiling_btu,
-            heat.ceiling_sqft,
-            heat.ceiling_watts
-        ) = extract_detail_values(
-            text,
-            "Ceiling Convection"
-        )
+        # ==================================================
+        # People
+        # ==================================================
 
-        (
-            heat.overhead_lighting_btu,
-            heat.overhead_lighting_sqft,
-            heat.overhead_lighting_watts
-        ) = extract_detail_values(
-            text,
-            "Overhead Lighting Convection"
-        )
-
-        (
-            heat.task_lighting_btu,
-            heat.task_lighting_sqft,
-            heat.task_lighting_watts
-        ) = extract_detail_values(
-            text,
-            "Task Lighting Convection"
-        )
-
-        (
-            heat.equipment_btu,
-            heat.equipment_sqft,
-            heat.equipment_watts
-        ) = extract_detail_values(
-            text,
-            "Electric Equipment Convection"
-        )
-
-        # People loads
         people_match = re.search(
             r"People Convection\s+"
             r"(\d+(?:\.\d+)?)\s+"
@@ -554,50 +458,61 @@ def extract_heat_balance_pdf(
 
         if people_match:
 
-            heat.people_count = clean_number(
-                people_match.group(1)
+            heat.people_count = (
+                clean_number(
+                    people_match.group(1)
+                )
             )
 
-            heat.people_sensible_btu = clean_number(
-                people_match.group(2)
+            heat.people_sensible_btu = (
+                clean_number(
+                    people_match.group(2)
+                )
             )
 
-            heat.people_latent_btu = clean_number(
-                people_match.group(3)
+            heat.people_latent_btu = (
+                clean_number(
+                    people_match.group(3)
+                )
             )
 
-        (
-            heat.infiltration_sensible_btu,
-            heat.infiltration_latent_btu
-        ) = extract_row_values(
-            text,
-            "Infiltration"
-        )
+        # ==================================================
+        # Clean Debug Output
+        # ==================================================
 
-        (
-            heat.misc_equipment_sensible_btu,
-            heat.misc_equipment_latent_btu
-        ) = extract_row_values(
-            text,
-            "Miscellaneous Equipment"
-        )
+        if (
+            missing_table1
+            or
+            missing_table2
+        ):
 
-        (
-            heat.air_energy_change_sensible_btu,
-            heat.air_energy_change_latent_btu
-        ) = extract_row_values(
-            text,
-            "Air Internal Energy Change"
-        )
+            print(
+                f"\n[WARNING] Heat balance incomplete:"
+                f"\n  System: {system.name}"
+            )
 
-        (
-            heat.total_zone_sensible_btu,
-            heat.total_zone_latent_btu
-        ) = extract_row_values(
-            text,
-            ">> Total Zone Loads"
-        )
+            if missing_table1:
+
+                print(
+                    "\n  Missing Table 1:"
+                )
+
+                for item in missing_table1:
+                    print(
+                        f"    • {item}"
+                    )
+
+            if missing_table2:
+
+                print(
+                    "\n  Missing Table 2:"
+                )
+
+                for item in missing_table2:
+                    print(
+                        f"    • {item}"
+                    )
 
     print(
-        "Heat balance extraction complete."
+        "\nHeat balance extraction complete."
     )

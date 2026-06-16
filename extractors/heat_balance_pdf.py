@@ -12,7 +12,6 @@ def clean_number(value: str | None) -> float | None:
     except Exception:
         return None
 
-# May need to be deleted
 def extract_row_values(
     text: str,
     label: str
@@ -303,10 +302,9 @@ def extract_heat_balance_pdf(
         if system_name not in systems:
 
             print(
-                f"System not found: "
-                f"{system_name}"
+                f"[WARNING] Skipping unmatched system:\n"
+                f"  {system_name}"
             )
-
             continue
 
         system: AirSystem = systems[system_name]

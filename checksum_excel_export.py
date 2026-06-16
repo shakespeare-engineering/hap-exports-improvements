@@ -18,6 +18,27 @@ def safe_number(
     return value or 0
 
 
+def clean_sheet_name(
+    name: str
+) -> str:
+    """
+    Remove invalid Excel
+    sheet characters.
+    """
+
+    invalid_chars = (
+        r'[]:*?/\\'
+    )
+
+    for char in invalid_chars:
+        name = name.replace(
+            char,
+            "-"
+        )
+
+    return name[:31]
+
+
 def add_section_header(
     sheet,
     row: int,
@@ -248,7 +269,7 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
 
     for system in systems.values():
 
-        sheet = (workbook.create_sheet(title=(system.name[:31])))
+        sheet = (workbook.create_sheet(title=clean_sheet_name(system.name)))
 
         heat = (system.heat_balance)
 

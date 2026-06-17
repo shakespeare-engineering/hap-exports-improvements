@@ -1247,7 +1247,7 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
         sheet.cell(
             row=row,
             column=2,
-            value=f"=F{row-13}/F22"
+            value=f"=F{row-13}/F21"
         )
 
         # cfm/ton

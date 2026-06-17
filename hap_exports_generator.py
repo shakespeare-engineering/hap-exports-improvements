@@ -17,12 +17,29 @@ def main() -> None:
 
     print()
     print("Instructions:")
-    print("1. Export the combined PDF from HAP.")
-    print("2. Drag the PDF onto this program.")
-    print("3. The program will split the PDF.")
-    print("4. The program will generate checksum reports.")
     print()
-
+    print("1. In HAP, export the COMBINED report PDF that")
+    print("   contains all required report sections.")
+    print()
+    print("2. Easiest method:")
+    print("   Drag the PDF file directly onto the")
+    print("   HAP Export Generator.exe icon.")
+    print()
+    print("3. Alternative method:")
+    print("   Run the program and either type the full")
+    print("   file path or drag the PDF into this")
+    print("   console window and press Enter.")
+    print()
+    print("4. The program will automatically:")
+    print("   - Split the combined PDF")
+    print("   - Create a HAP Exports folder")
+    print("   - Parse all HAP reports")
+    print("   - Generate the System Checksums workbook")
+    print()
+    print("5. All generated files will be placed in")
+    print("   the project directory.")
+    print()
+    
     # ======================================
     # Drag-and-drop support
     # ======================================

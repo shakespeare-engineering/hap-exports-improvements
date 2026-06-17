@@ -309,7 +309,7 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
         row: int = 1
 
         # ======================================
-        # Title
+        # region Title
         # ======================================
 
         sheet["A1"] = ("System Checksums")
@@ -332,9 +332,10 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
         sheet["A2"].font = Font(
             italic=True
         )
+        # endregion
 
         # ======================================
-        # Global Parameters
+        # region Global Parameters
         # ======================================
 
         sheet["E8"] = (
@@ -391,13 +392,21 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
             fill_type="solid",
             fgColor="ffb400"
         )
+        # endregion
 
         # ======================================
-        # Mechanical Equipment Table
+        # region Mechanical Equipment Table
         # ======================================
 
         equipment_start_col = 11  # K
         equipment_row = 7
+
+        # Equipment title
+        sheet["J6"] = ("CFM Nerfs")
+        sheet["J6"].font = Font(
+            bold=True,
+            size=13
+        )
 
         equipment_headers = [
             "Space Name",
@@ -488,8 +497,10 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
 
         equipment_start_row = equipment_row
 
+        # endregion
+
         # ======================================
-        # Space Rows
+        # region Space Rows
         # ======================================
 
         for zone in system.zones:
@@ -606,9 +617,10 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
             column=12,   
             value=f"=SUM(L{equipment_start_row}:L{equipment_end_row})"
         )
+        # endregion
 
         # ======================================
-        # % of Total MBH formulas
+        # region % of Total MBH formulas
         # ======================================
 
         for space_row in range(
@@ -688,12 +700,13 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
             ).font = Font(
                 bold=True
             )
-
+        # endregion
+        
         # Set the initial row
         row = 7
 
         # ======================================
-        # Cooling Conditions
+        # region Cooling Conditions
         # ======================================
 
         row = (
@@ -1317,7 +1330,7 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
             '0'
         )
 
-
+    # endregion
         
     # ======================================
     # Exportation

@@ -66,13 +66,18 @@ def process():
         # Step 4: Generate checksum workbook
         export_system_checksums(systems, hap_exports_folder)
 
-        # Step 5: Zip everything in the HAP Exports folder
+        # Step 5: Zip split PDFs from HAP Exports folder + Excel from temp root
         zip_buffer = BytesIO()
         exports_path = Path(hap_exports_folder)
 
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            # Split PDFs
             for file in exports_path.iterdir():
                 if file.is_file():
+                    zf.write(file, file.name)
+            # Excel workbook (saved one level up in temp root)
+            for file in Path(temp_dir).iterdir():
+                if file.is_file() and file.suffix == '.xlsx':
                     zf.write(file, file.name)
 
         zip_buffer.seek(0)

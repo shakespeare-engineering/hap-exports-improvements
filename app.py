@@ -2,6 +2,7 @@ import os
 import sys
 import tempfile
 import shutil
+import zipfile
 from io import BytesIO
 from pathlib import Path
 
@@ -65,28 +66,29 @@ def process():
         # Step 4: Generate checksum workbook
         export_system_checksums(systems, hap_exports_folder)
 
-        # Step 5: Find the output xlsx file
-        output_files = list(Path(hap_exports_folder).glob('* - System Checksums.xlsx'))
+        # Step 5: Zip everything in the HAP Exports folder
+        zip_buffer = BytesIO()
+        exports_path = Path(hap_exports_folder)
 
-        if not output_files:
-            output_files = list(Path(temp_dir).glob('* - System Checksums.xlsx'))
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for file in exports_path.iterdir():
+                if file.is_file():
+                    zf.write(file, file.name)
 
-        if not output_files:
-            return jsonify({'error': 'Output file was not generated. The process may have completed with errors.'}), 500
+        zip_buffer.seek(0)
 
-        output_path = output_files[0]
-        output_name = output_path.name
-
-        # Read into memory so we can clean up temp dir safely
-        with open(output_path, 'rb') as f:
-            file_data = BytesIO(f.read())
-        file_data.seek(0)
+        # Name the zip after the project
+        first_system = next(iter(systems.values()))
+        project_name = (first_system.project_name or 'HAP Export').strip()
+        for char in '<>:"/\\|?*':
+            project_name = project_name.replace(char, '-')
+        zip_name = f"{project_name} - HAP Exports.zip"
 
         return send_file(
-            file_data,
+            zip_buffer,
             as_attachment=True,
-            download_name=output_name,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            download_name=zip_name,
+            mimetype='application/zip'
         )
 
     except FileNotFoundError as e:

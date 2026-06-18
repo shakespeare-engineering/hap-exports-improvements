@@ -59,53 +59,23 @@ def process():
         if not hap_folders:
             return jsonify({'error': 'HAP Exports folder was not created. Check that your PDF contains the expected report sections.'}), 500
 
-        hap_exports_folder = str(
-            max(hap_folders, key=lambda f: f.stat().st_mtime)
-        )
+        hap_exports_folder = max(hap_folders, key=lambda f: f.stat().st_mtime)
 
         # Step 4: Generate checksum workbook
-        export_system_checksums(systems, hap_exports_folder)
+        export_system_checksums(systems, str(hap_exports_folder))
 
-        # Step 5: Zip split PDFs from HAP Exports folder + Excel from temp root
+        # Step 5: Zip with folder structure
+        # Result will be:
+        #   ProjectName - HAP Exports.zip
+        #   ├── 2026-06-18_HAP Exports/
+        #   │   ├── project_SystemSizingSummary.pdf
+        #   │   ├── project_ZoneSizingSummary.pdf
+        #   │   ├── project_VentilationSizingSummary.pdf
+        #   │   └── project_HeatBalanceSummary.pdf
+        #   └── ProjectName - System Checksums.xlsx
+
         zip_buffer = BytesIO()
-        exports_path = Path(hap_exports_folder)
 
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-            # Split PDFs
-            for file in exports_path.iterdir():
-                if file.is_file():
-                    zf.write(file, file.name)
-            # Excel workbook (saved one level up in temp root)
-            for file in Path(temp_dir).iterdir():
-                if file.is_file() and file.suffix == '.xlsx':
-                    zf.write(file, file.name)
-
-        zip_buffer.seek(0)
-
-        # Name the zip after the project
-        first_system = next(iter(systems.values()))
-        project_name = (first_system.project_name or 'HAP Export').strip()
-        for char in '<>:"/\\|?*':
-            project_name = project_name.replace(char, '-')
-        zip_name = f"{project_name} - HAP Exports.zip"
-
-        return send_file(
-            zip_buffer,
-            as_attachment=True,
-            download_name=zip_name,
-            mimetype='application/zip'
-        )
-
-    except FileNotFoundError as e:
-        return jsonify({'error': f'Required file not found: {str(e)}'}), 400
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-    finally:
-        shutil.rmtree(temp_dir, ignore_errors=True)
-
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+            # Split PDFs inside their dated folder
+            for file in hap_exports_folder.iterdir():

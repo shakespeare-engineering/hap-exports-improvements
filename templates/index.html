@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HAP Export Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:    #1e3a5f;
+      --blue:    #2563eb;
+      --blue-lt: #eff6ff;
+      --green:   #16a34a;
+      --red:     #dc2626;
+      --red-lt:  #fef2f2;
+      --bg:      #f0f2f5;
+      --card:    #ffffff;
+      --border:  #e2e8f0;
+      --text:    #111827;
+      --muted:   #6b7280;
+      --mono:    'Roboto Mono', monospace;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 60px;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 10px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--navy);
+      letter-spacing: -.02em;
+      line-height: 1.2;
+    }
+    .subtitle {
+      margin-top: 8px;
+      font-size: 14px;
+      color: var(--muted);
+      max-width: 420px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      width: 100%;
+      max-width: 560px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+
+    /* ── Step labels ── */
+    .step-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--navy);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .step-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--navy);
+    }
+    .step-hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: 32px;
+      margin-bottom: 10px;
+    }
+
+    /* ── File input ── */
+    .file-drop {
+      position: relative;
+      border: 1.5px dashed var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      margin-bottom: 20px;
+    }
+    .file-drop:hover, .file-drop.has-file {
+      border-color: var(--blue);
+      background: var(--blue-lt);
+    }
+    .file-drop input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .file-inner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      pointer-events: none;
+    }
+    .file-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .file-icon.pdf  { background: #fee2e2; }
+    .file-icon.xlsx { background: #dcfce7; }
+    .file-text-wrap { flex: 1; min-width: 0; }
+    .file-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .file-name {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+    .file-name.selected { color: var(--blue); font-weight: 500; }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 24px 0;
+    }
+
+    /* ── Button ── */
+    button[type="submit"] {
+      width: 100%;
+      padding: 13px;
+      background: var(--navy);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, opacity .15s;
+      letter-spacing: .01em;
+    }
+    button[type="submit"]:hover:not(:disabled) {
+      background: #162d4a;
+    }
+    button[type="submit"]:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    /* ── Status messages ── */
+    #status {
+      margin-top: 20px;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 13px;
+      display: none;
+    }
+    #status.loading {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--blue-lt);
+      color: var(--navy);
+      border: 1px solid #bfdbfe;
+    }
+    #status.success {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #f0fdf4;
+      color: #14532d;
+      border: 1px solid #bbf7d0;
+    }
+    #status.error {
+      display: block;
+      background: var(--red-lt);
+      color: var(--red);
+      border: 1px solid #fecaca;
+    }
+    #status.error strong { display: block; margin-bottom: 4px; font-weight: 600; }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid #bfdbfe;
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 32px;
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Carrier HAP · Shakespeare Engineering</p>
+  <h1>HAP Export Generator</h1>
+  <p class="subtitle">Upload your combined HAP report PDF and sizing Excel files to generate the System Checksums workbook.</p>
+</header>
+
+<div class="card">
+  <form id="uploadForm">
+
+    <!-- Step 1 – PDF -->
+    <div class="step-label">
+      <div class="step-num">1</div>
+      <span class="step-title">Combined HAP Report PDF</span>
+    </div>
+    <p class="step-hint">Export the combined report from HAP containing all required sections.</p>
+    <div class="file-drop" id="drop-pdf">
+      <input type="file" name="pdf" id="input-pdf" accept=".pdf" required />
+      <div class="file-inner">
+        <div class="file-icon pdf">📄</div>
+        <div class="file-text-wrap">
+          <div class="file-label">Select PDF file</div>
+          <div class="file-name" id="name-pdf">No file selected</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2 – System Sizing -->
+    <div class="step-label">
+      <div class="step-num">2</div>
+      <span class="step-title">System Sizing Summary</span>
+    </div>
+    <p class="step-hint">The <code>*SysSizingSummary.xlsx</code> file exported from HAP.</p>
+    <div class="file-drop" id="drop-sys">
+      <input type="file" name="sys_excel" id="input-sys" accept=".xlsx" required />
+      <div class="file-inner">
+        <div class="file-icon xlsx">📊</div>
+        <div class="file-text-wrap">
+          <div class="file-label">Select System Sizing Excel</div>
+          <div class="file-name" id="name-sys">No file selected</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3 – Zone Sizing -->
+    <div class="step-label">
+      <div class="step-num">3</div>
+      <span class="step-title">Zone Sizing Summary</span>
+    </div>
+    <p class="step-hint">The <code>*ZoneSizingSummary.xlsx</code> file exported from HAP.</p>
+    <div class="file-drop" id="drop-zone">
+      <input type="file" name="zone_excel" id="input-zone" accept=".xlsx" required />
+      <div class="file-inner">
+        <div class="file-icon xlsx">📊</div>
+        <div class="file-text-wrap">
+          <div class="file-label">Select Zone Sizing Excel</div>
+          <div class="file-name" id="name-zone">No file selected</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <button type="submit" id="submitBtn">Generate System Checksums</button>
+  </form>
+
+  <div id="status"></div>
+</div>
+
+<footer>HAP Export Generator · Only tested with HAP 6.4 · Single zone CAV systems</footer>
+
+<script>
+  // Update filename display when a file is chosen
+  function bindFileInput(inputId, nameId, dropId) {
+    const input = document.getElementById(inputId);
+    const nameEl = document.getElementById(nameId);
+    const dropEl = document.getElementById(dropId);
+
+    input.addEventListener('change', () => {
+      if (input.files.length > 0) {
+        nameEl.textContent = input.files[0].name;
+        nameEl.classList.add('selected');
+        dropEl.classList.add('has-file');
+      } else {
+        nameEl.textContent = 'No file selected';
+        nameEl.classList.remove('selected');
+        dropEl.classList.remove('has-file');
+      }
+    });
+  }
+
+  bindFileInput('input-pdf',  'name-pdf',  'drop-pdf');
+  bindFileInput('input-sys',  'name-sys',  'drop-sys');
+  bindFileInput('input-zone', 'name-zone', 'drop-zone');
+
+  // Form submit
+  document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const status = document.getElementById('status');
+    const btn = document.getElementById('submitBtn');
+
+    // Show loading
+    btn.disabled = true;
+    status.className = 'loading';
+    status.innerHTML = '<div class="spinner"></div><span>Processing — splitting PDF, parsing reports, generating workbook…</span>';
+
+    const formData = new FormData(e.target);
+
+    try {
+      const response = await fetch('/process', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (response.ok) {
+        // Trigger download
+        const blob = await response.blob();
+        const disposition = response.headers.get('Content-Disposition') || '';
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        const filename = match ? match[1] : 'System Checksums.xlsx';
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+        status.className = 'success';
+        status.innerHTML = `<span>✓</span><span><strong>Done.</strong> "${filename}" has been downloaded.</span>`;
+      } else {
+        const data = await response.json();
+        status.className = 'error';
+        status.innerHTML = `<strong>Processing failed</strong>${data.error || 'An unknown error occurred.'}`;
+      }
+    } catch (err) {
+      status.className = 'error';
+      status.innerHTML = `<strong>Network error</strong>${err.message}`;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

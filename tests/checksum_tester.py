@@ -52,21 +52,12 @@ def main() -> None:
     )
 
     # ==========================================
-    # Output path
-    # ==========================================
-
-    output_file: Path = (
-        project_path
-        / "System Checksums.xlsx"
-    )
-
-    # ==========================================
     # Export workbook
     # ==========================================
 
     export_system_checksums(
         systems=systems,
-        output_path=output_file
+        output_directory=project_path
     )
 
     print(

@@ -2,7 +2,7 @@ from pathlib import Path
 import sys
 
 from split_hap_pdf import split_hap_pdf
-from hap_exports_loader import load_hap_exports
+from hap_exports_loader import load_hap_exports, find_latest_hap_export_folder
 from checksum_excel_export import export_system_checksums
 
 
@@ -165,13 +165,13 @@ def main() -> None:
             "Loading HAP exports..."
         )
 
-        hap_exports_folder = (
-            pdf_path.parent
-            / "HAP Exports"
-        )
-
         systems = load_hap_exports(
             str(pdf_path.parent)
+        )
+
+        # Locate the dated HAP Exports folder created by the split step
+        hap_exports_folder = find_latest_hap_export_folder(
+            pdf_path.parent
         )
 
         # ======================================

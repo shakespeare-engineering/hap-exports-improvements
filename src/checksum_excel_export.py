@@ -287,7 +287,7 @@ def format_sheet(sheet) -> None:
         )
 
 
-def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Path) -> None:
+def export_system_checksums(systems: dict[str, AirSystem], output_directory: str | Path) -> None:
     """
     Export checksum workbook.
     """
@@ -1352,11 +1352,11 @@ def export_system_checksums(systems: dict[str, AirSystem], output_path: str | Pa
 
     project_name = project_name.strip()
 
-    # Build output filename
-    output_path = Path(output_path)
+    # Build output path inside the given directory
+    output_directory = Path(output_directory)
 
     final_output_path = (
-        output_path.parent
+        output_directory
         /
         f"{project_name} - System Checksums.xlsx"
     )

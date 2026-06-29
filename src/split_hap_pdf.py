@@ -27,6 +27,10 @@ from datetime import datetime
 # Used for drag-and-drop file support.
 import sys
 
+# Regular expressions.
+# Used to parse the project name from the report header.
+import re
+
 
 # ==========================================================
 # HAP PDF Splitter
@@ -57,6 +61,60 @@ def detect_report_type(text: str) -> str | None:
             return report_type
 
     return None
+
+
+# Header line format: "Project: <name> MM/DD/YYYY"
+# The trailing date is tabbed to the right of the page and is used
+# only as a boundary marker; it is not part of the captured name.
+PROJECT_NAME_PATTERN: str = r"Project:\s+(.+?)\s+\d{2}/\d{2}/\d{4}"
+
+
+def extract_project_name(text: str) -> str | None:
+    """
+    Parse the HAP project name from a page's text.
+
+    Args:
+        text (str): Extracted text from a single PDF page.
+
+    Returns:
+        str | None: The project name if found, otherwise None.
+    """
+
+    project_match = re.search(PROJECT_NAME_PATTERN, text)
+
+    if not project_match:
+        return None
+
+    project_name: str = project_match.group(1).strip()
+
+    return project_name
+
+
+def clean_filename_component(name: str) -> str:
+    """
+    Make a string safe to embed in a filename.
+
+    Replaces characters that are invalid in Windows filenames
+    and removes all whitespace (e.g. "St George" -> "StGeorge").
+
+    Args:
+        name (str): Raw text to sanitize.
+
+    Returns:
+        str: Sanitized filename component.
+    """
+
+    invalid_chars: str = '<>:"/\\|?*'
+
+    cleaned_name: str = name
+
+    for char in invalid_chars:
+        cleaned_name = cleaned_name.replace(char, "-")
+
+    cleaned_name = "".join(cleaned_name.split())
+
+    return cleaned_name
+
 
 def add_page_numbers(writer: PdfWriter) -> None:
     """
@@ -161,6 +219,9 @@ def split_hap_pdf(pdf_path_str: str) -> None:
     # Used for multi-page reports
     current_report_type: str | None = None
 
+    # Project name parsed from the report header (used for filenames)
+    project_name: str | None = None
+
     # Loop through pages and classify them.  Pages are added to the appropriate writer based on their content.
     # enumerate makes it easy to track page numbers for logging.  start=1 makes page numbers 1-based instead of 0-based.
     for page_num, page in enumerate(reader.pages, start=1):
@@ -172,6 +233,10 @@ def split_hap_pdf(pdf_path_str: str) -> None:
 
             if not text:
                 text = ""
+
+            # Capture project name once for output filenames
+            if project_name is None:
+                project_name = extract_project_name(text)
 
             # Only inspect first chunk of text for speed
             header_text = text[:200]
@@ -204,18 +269,31 @@ def split_hap_pdf(pdf_path_str: str) -> None:
     output_dir = pdf_path.parent / f"{today_date}_HAP Exports"    # Note: exist_ok=True allows the directory to be created if it doesn't exist and does nothing if it already exists, preventing errors.
     output_dir.mkdir(exist_ok=True)
 
+    # Build filename prefix: system date + project name.
+    # The system date is used (same source as the folder name above),
+    # not the report date parsed from the PDF header.
+    if project_name:
+        clean_project_name: str = clean_filename_component(project_name)
+        filename_prefix: str = f"{today_date}_{clean_project_name}"
+    else:
+        filename_prefix = pdf_path.stem
+        print(
+            "\nWARNING: Project name not found in PDF; "
+            "using PDF filename for output names."
+        )
+
     output_files: dict[str, Path] = {
         "system_sizing":
-            output_dir / f"{pdf_path.stem}_SystemSizingSummary.pdf",
+            output_dir / f"{filename_prefix}_SystemSizingSummary.pdf",
 
         "zone_sizing":
-            output_dir / f"{pdf_path.stem}_ZoneSizingSummary.pdf",
+            output_dir / f"{filename_prefix}_ZoneSizingSummary.pdf",
 
         "ventilation_sizing":
-            output_dir / f"{pdf_path.stem}_VentilationSizingSummary.pdf",
+            output_dir / f"{filename_prefix}_VentilationSizingSummary.pdf",
 
         "heat_balance":
-            output_dir / f"{pdf_path.stem}_HeatBalanceSummary.pdf",
+            output_dir / f"{filename_prefix}_HeatBalanceSummary.pdf",
     }
 
     # Save PDFs

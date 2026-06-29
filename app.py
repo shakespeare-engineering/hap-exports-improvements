@@ -35,7 +35,6 @@ def process():
     temp_dir = tempfile.mkdtemp()
 
     try:
-        # Save uploaded files preserving original names
         pdf_path = os.path.join(temp_dir, pdf_file.filename)
         sys_path = os.path.join(temp_dir, sys_excel.filename)
         zone_path = os.path.join(temp_dir, zone_excel.filename)
@@ -44,45 +43,34 @@ def process():
         sys_excel.save(sys_path)
         zone_excel.save(zone_path)
 
-        # Step 1: Split the PDF
         split_hap_pdf(pdf_path)
 
-        # Step 2: Load HAP exports
         systems = load_hap_exports(temp_dir)
 
-        # Step 3: Find the generated HAP Exports folder
         hap_folders = [
             f for f in Path(temp_dir).iterdir()
             if f.is_dir() and f.name.endswith('_HAP Exports')
         ]
 
         if not hap_folders:
-            return jsonify({'error': 'HAP Exports folder was not created. Check that your PDF contains the expected report sections.'}), 500
+            return jsonify({'error': 'HAP Exports folder was not created.'}), 500
 
-        hap_exports_folder = str(
-            max(hap_folders, key=lambda f: f.stat().st_mtime)
-        )
+        hap_exports_folder = max(hap_folders, key=lambda f: f.stat().st_mtime)
 
-        # Step 4: Generate checksum workbook
-        export_system_checksums(systems, hap_exports_folder)
+        export_system_checksums(systems, str(hap_exports_folder))
 
-        # Step 5: Zip split PDFs from HAP Exports folder + Excel from temp root
         zip_buffer = BytesIO()
-        exports_path = Path(hap_exports_folder)
 
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-            # Split PDFs
-            for file in exports_path.iterdir():
+            for file in hap_exports_folder.iterdir():
                 if file.is_file():
-                    zf.write(file, file.name)
-            # Excel workbook (saved one level up in temp root)
+                    zf.write(file, f"{hap_exports_folder.name}/{file.name}")
             for file in Path(temp_dir).iterdir():
                 if file.is_file() and file.suffix == '.xlsx':
                     zf.write(file, file.name)
 
         zip_buffer.seek(0)
 
-        # Name the zip after the project
         first_system = next(iter(systems.values()))
         project_name = (first_system.project_name or 'HAP Export').strip()
         for char in '<>:"/\\|?*':

@@ -2,8 +2,8 @@
 
 
 a = Analysis(
-    ['split_hap_pdf.py'],
-    pathex=[],
+    ['src/split_hap_pdf.py'],
+    pathex=['src'],
     binaries=[],
     datas=[],
     hiddenimports=[],

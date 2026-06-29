@@ -8,7 +8,7 @@ from pathlib import Path
 
 from flask import Flask, render_template, request, send_file, jsonify
 
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from split_hap_pdf import split_hap_pdf
 from hap_exports_loader import load_hap_exports

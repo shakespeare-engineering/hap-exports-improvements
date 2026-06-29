@@ -14,7 +14,7 @@ from extractors.heat_balance_pdf import (
 )
 
 from models.air_system import AirSystem
-from ventilationPDFTesting import print_dataclass
+from print_utils import print_dataclass
 
 
 def find_file(directory: Path,pattern: str,description: str) -> Path:

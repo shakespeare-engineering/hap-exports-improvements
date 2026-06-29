@@ -6,6 +6,71 @@ from hap_exports_loader import load_hap_exports
 from checksum_excel_export import export_system_checksums
 
 
+# Debug flag: delete the combined PDF and the source spreadsheets
+# after a successful run. The split PDFs and generated workbook are kept.
+# TODO: expose this as a user option in the executable.
+DELETE_SOURCE_FILES: bool = True
+
+# Glob patterns for the spreadsheets the loader parses.
+# These mirror the patterns in hap_exports_loader.find_file().
+SOURCE_EXCEL_PATTERNS: tuple[str, ...] = (
+    "*SysSizingSummary.xlsx",
+    "*ZoneSizingSummary.xlsx",
+)
+
+
+def delete_file(file_path: Path) -> None:
+    """
+    Delete a single file, reporting the result.
+
+    Args:
+        file_path (Path): File to delete.
+
+    Returns:
+        None
+    """
+
+    try:
+        file_path.unlink()
+        print(f"  Deleted: {file_path.name}")
+
+    except OSError as error:
+        print(f"  Could not delete {file_path.name}: {error}")
+
+
+def delete_source_files(combined_pdf_path: Path, project_directory: Path) -> None:
+    """
+    Delete the source files consumed by the export process.
+
+    Removes the combined input PDF and the two sizing spreadsheets.
+    The split PDFs and the generated workbook are left in place.
+
+    Args:
+        combined_pdf_path (Path): The combined HAP PDF that was split.
+        project_directory (Path): Folder containing the source spreadsheets.
+
+    Returns:
+        None
+    """
+
+    print("\nDeleting source files...")
+
+    # Combined input PDF
+    if combined_pdf_path.exists():
+        delete_file(combined_pdf_path)
+
+    # Sizing spreadsheets
+    for pattern in SOURCE_EXCEL_PATTERNS:
+
+        excel_matches: list[Path] = list(project_directory.glob(pattern))
+
+        if not excel_matches:
+            print(f"  No file matching {pattern} found.")
+            continue
+
+        delete_file(excel_matches[0])
+
+
 def main() -> None:
     """
     Main entry point for HAP Export Generator.
@@ -126,6 +191,10 @@ def main() -> None:
         print(
             "HAP Export Generation Complete."
         )
+
+        # Clean up consumed source files (toggle via DELETE_SOURCE_FILES)
+        if DELETE_SOURCE_FILES:
+            delete_source_files(pdf_path, pdf_path.parent)
 
     except Exception as error:
 

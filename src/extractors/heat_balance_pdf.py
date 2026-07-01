@@ -39,18 +39,34 @@ def extract_system_load_values(
     label: str
 ) -> tuple[
     float | None,
+    float | None,
     float | None
 ]:
     """
-    Extract cooling sensible + latent
+    Extract cooling sensible + latent and heating sensible
     values from Table 1.
+
+    The heating tail is optional so that cooling extraction
+    still succeeds on reports that lack a heating column.
+
+    Args:
+        text (str): Extracted text from the heat balance page.
+        label (str): Row label to search for.
+
+    Returns:
+        tuple: (cooling_sensible, cooling_latent, heating_sensible),
+            each None if not present.
     """
 
     pattern: str = (
         rf"^{re.escape(label)}\s+"
         rf"(?:[-\d.]+\s*(?:CFM|sqft|W)?\s+)?"
-        rf"(-?\d+(?:\.\d+)?)\s+"
-        rf"(-|-?\d+(?:\.\d+)?)"
+        rf"(-?\d+(?:\.\d+)?)\s+"                 # 1 cooling sensible
+        rf"(-|-?\d+(?:\.\d+)?)"                  # 2 cooling latent
+        rf"(?:\s+"                               # -- optional heating tail --
+        rf"(?:[-\d.]+\s*(?:CFM|sqft|W)?\s+)?"
+        rf"(-?\d+(?:\.\d+)?)\s+"                 # 3 heating sensible
+        rf"(-|-?\d+(?:\.\d+)?))?"                # 4 heating latent
     )
 
     match = re.search(
@@ -61,6 +77,7 @@ def extract_system_load_values(
 
     if not match:
         return (
+            None,
             None,
             None
         )
@@ -81,9 +98,16 @@ def extract_system_load_values(
         )
     )
 
+    heating_sensible: float | None = (
+        clean_number(match.group(3))
+        if match.group(3) is not None
+        else None
+    )
+
     return (
         sensible,
-        latent
+        latent,
+        heating_sensible
     )
 
 
@@ -93,24 +117,40 @@ def extract_detail_values(
 ) -> tuple[
     float | None,
     float | None,
+    float | None,
     float | None
 ]:
     """
-    Extract cooling-side detail rows
+    Extract cooling-side detail rows and heating sensible
     from Table 2.
+
+    The heating tail is optional so that cooling extraction
+    still succeeds on reports that lack a heating column.
+
+    Args:
+        text (str): Extracted text from the heat balance page.
+        label (str): Row label to search for.
+
+    Returns:
+        tuple: (cooling_btu, sqft, watts, heating_btu),
+            each None if not present.
     """
 
     match = re.search(
         rf"{re.escape(label)}\s+"
-        rf"(\d+(?:\.\d+)?)\s*"
-        rf"(sqft|W|CFM)?\s+"
-        rf"(-?\d+(?:\.\d+)?)",
+        rf"(\d+(?:\.\d+)?)\s*"                          # 1 detail value
+        rf"(sqft|W|CFM)?\s+"                            # 2 detail type
+        rf"(-?\d+(?:\.\d+)?)"                           # 3 cooling sensible btu
+        rf"(?:\s+(?:-|-?\d+(?:\.\d+)?)\s+"              # cooling latent (dash/num)
+        rf"(?:\d+(?:\.\d+)?\s*(?:sqft|W|CFM)?\s+)?"     # heating detail (same units)
+        rf"(-?\d+(?:\.\d+)?))?",                        # 4 heating sensible btu
         text,
         re.MULTILINE
     )
 
     if not match:
         return (
+            None,
             None,
             None,
             None
@@ -140,10 +180,17 @@ def extract_detail_values(
         else None
     )
 
+    heating_btu: float | None = (
+        clean_number(match.group(4))
+        if match.group(4) is not None
+        else None
+    )
+
     return (
         btu_value,
         sqft,
-        watts
+        watts,
+        heating_btu
     )
 
 
@@ -153,24 +200,40 @@ def extract_table1CFM_values(
 ) -> tuple[
     float | None,
     float | None,
+    float | None,
     float | None
 ]:
     """
-    Extract CFM + sensible + latent
-    from Table 1 rows.
+    Extract CFM + sensible + latent and heating sensible
+    from Table 1 CFM rows.
+
+    The heating tail is optional so that cooling extraction
+    still succeeds on reports that lack a heating column.
+
+    Args:
+        text (str): Extracted text from the heat balance page.
+        label (str): Row label to search for.
+
+    Returns:
+        tuple: (cfm, cooling_sensible, cooling_latent, heating_sensible),
+            each None if not present.
     """
 
     match = re.search(
         rf"{re.escape(label)}\s+"
-        rf"(\d+(?:\.\d+)?)\s*CFM\s+"
-        rf"(-?\d+(?:\.\d+)?|-)\s+"
-        rf"(-?\d+(?:\.\d+)?|-)",
+        rf"(\d+(?:\.\d+)?)\s*CFM\s+"             # 1 cfm
+        rf"(-?\d+(?:\.\d+)?|-)\s+"               # 2 cooling sensible
+        rf"(-?\d+(?:\.\d+)?|-)"                  # 3 cooling latent
+        rf"(?:\s+\d+(?:\.\d+)?\s*CFM\s+"         # -- optional heating tail (same cfm) --
+        rf"(-?\d+(?:\.\d+)?|-)\s+"               # 4 heating sensible
+        rf"(-?\d+(?:\.\d+)?|-))?",               # 5 heating latent
         text,
         re.MULTILINE
     )
 
     if not match:
         return (
+            None,
             None,
             None,
             None
@@ -204,10 +267,24 @@ def extract_table1CFM_values(
         )
     )
 
+    heating_sensible_raw: str | None = (
+        match.group(4)
+    )
+
+    heating_sensible: float | None = (
+        None
+        if heating_sensible_raw is None
+        or heating_sensible_raw == "-"
+        else clean_number(
+            heating_sensible_raw
+        )
+    )
+
     return (
         cfm,
         sensible,
-        latent
+        latent,
+        heating_sensible
     )
 
 
@@ -325,7 +402,7 @@ def extract_heat_balance_pdf(
 
         for label, attr in table1_rows:
 
-            sensible, latent = (
+            sensible, latent, heating_sensible = (
                 extract_system_load_values(
                     text,
                     label
@@ -344,6 +421,12 @@ def extract_heat_balance_pdf(
                 latent
             )
 
+            setattr(
+                heat,
+                f"{attr}_heating_sensible_btu",
+                heating_sensible
+            )
+
             if (
                 sensible is None
                 and latent is None
@@ -360,7 +443,7 @@ def extract_heat_balance_pdf(
 
         for label, attr in cfm_rows:
 
-            cfm, sensible, latent = (
+            cfm, sensible, latent, heating_sensible = (
                 extract_table1CFM_values(
                     text,
                     label
@@ -383,6 +466,12 @@ def extract_heat_balance_pdf(
                 heat,
                 f"{attr}_latent_btu",
                 latent
+            )
+
+            setattr(
+                heat,
+                f"{attr}_heating_sensible_btu",
+                heating_sensible
             )
 
             if (
@@ -413,7 +502,7 @@ def extract_heat_balance_pdf(
 
         for label, attr in detail_rows:
 
-            btu, sqft, watts = (
+            btu, sqft, watts, heating_btu = (
                 extract_detail_values(
                     text,
                     label
@@ -438,6 +527,12 @@ def extract_heat_balance_pdf(
                 watts
             )
 
+            setattr(
+                heat,
+                f"{attr}_heating_sensible_btu",
+                heating_btu
+            )
+
             if btu is None:
                 missing_table2.append(
                     label
@@ -449,9 +544,11 @@ def extract_heat_balance_pdf(
 
         people_match = re.search(
             r"People Convection\s+"
-            r"(\d+(?:\.\d+)?)\s+"
-            r"(-?\d+(?:\.\d+)?)\s+"
-            r"(-?\d+(?:\.\d+)?)",
+            r"(\d+(?:\.\d+)?)\s+"                    # 1 people count
+            r"(-?\d+(?:\.\d+)?)\s+"                  # 2 cooling sensible
+            r"(-?\d+(?:\.\d+)?)"                     # 3 cooling latent
+            r"(?:\s+(-?\d+(?:\.\d+)?)\s+"            # heating count (ignored)
+            r"(-?\d+(?:\.\d+)?))?",                  # 5 heating sensible
             text,
             re.MULTILINE
         )
@@ -468,6 +565,12 @@ def extract_heat_balance_pdf(
                 clean_number(
                     people_match.group(2)
                 )
+            )
+
+            heat.people_heating_sensible_btu = (
+                clean_number(people_match.group(5))
+                if people_match.group(5) is not None
+                else None
             )
 
             heat.people_latent_btu = (

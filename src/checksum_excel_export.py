@@ -42,17 +42,28 @@ def clean_sheet_name(
 def add_section_header(
     sheet,
     row: int,
-    title: str
+    title: str,
+    end_column: int = 6
 ) -> int:
     """
     Add formatted section header.
+
+    Args:
+        sheet: Worksheet to write to.
+        row (int): Row to place the header on.
+        title (str): Header text.
+        end_column (int): Last column the header bar spans
+            (6 = through Details; 8 = through the heating columns).
+
+    Returns:
+        int: The next available row.
     """
 
     sheet.merge_cells(
         start_row=row,
         start_column=1,
         end_row=row,
-        end_column=6
+        end_column=end_column
     )
 
     cell = sheet.cell(
@@ -95,10 +106,25 @@ def add_load_row(
     sensible: float | None,
     latent: float | None,
     detail_value: float | None = None,
-    detail_units: str | None = None
+    detail_units: str | None = None,
+    heating_sensible: float | None = None
 ) -> int:
     """
     Add load row using Excel formulas.
+
+    Args:
+        sheet: Worksheet to write to.
+        row (int): Row to write.
+        label (str): Row label (column A).
+        sensible (float | None): Cooling sensible load (column B).
+        latent (float | None): Cooling latent load (column C).
+        detail_value (float | None): Optional detail value (column F).
+        detail_units (str | None): Optional units label for the detail.
+        heating_sensible (float | None): Design heating sensible load
+            (column G).
+
+    Returns:
+        int: The next available row.
     """
 
     sheet.cell(
@@ -152,6 +178,15 @@ def add_load_row(
             horizontal="right"
         )
 
+    # Heating sensible (column G)
+    sheet.cell(
+        row=row,
+        column=7,
+        value=safe_number(
+            heating_sensible
+        )
+    )
+
     return row + 1
 
 
@@ -196,7 +231,17 @@ def add_subtotal_row(
         value=f"=B{row}+C{row}"
     )
 
-    for col in range(1, 7):  # A through F
+    # Heating sensible subtotal (column G)
+    sheet.cell(
+        row=row,
+        column=7,
+        value=(
+            f"=SUM(G{start_row}:"
+            f"G{end_row})"
+        )
+    )
+
+    for col in range(1, 9):  # A through H
         sheet.cell(
             row=row,
             column=col
@@ -233,6 +278,15 @@ def format_sheet(sheet) -> None:
         "F"
     ].width = 18
 
+    # Heating columns
+    sheet.column_dimensions[
+        "G"
+    ].width = 16
+
+    sheet.column_dimensions[
+        "H"
+    ].width = 16
+
     sheet.column_dimensions[
         "K"
     ].width = 30
@@ -261,16 +315,17 @@ def format_sheet(sheet) -> None:
     ].width = 18
 
     # ======================================
-    # Cooling load formatting only
+    # Load number formatting (cooling + heating)
     # ======================================
 
     for row in range(1, 200):
 
-        # Sensible / Latent / Total
+        # Cooling Sensible / Latent / Total and Heating Sensible
         for column in [
             "B",
             "C",
-            "D"
+            "D",
+            "G"
         ]:
 
             sheet[
@@ -279,12 +334,17 @@ def format_sheet(sheet) -> None:
                 '#,##0'
             )
 
-        # Percent column
-        sheet[
-            f"E{row}"
-        ].number_format = (
-            '0.0%'
-        )
+        # Percent columns (cooling % and heating %)
+        for column in [
+            "E",
+            "H"
+        ]:
+
+            sheet[
+                f"{column}{row}"
+            ].number_format = (
+                '0.0%'
+            )
 
 
 def export_system_checksums(systems: dict[str, AirSystem], output_directory: str | Path) -> None:
@@ -459,29 +519,9 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
         )
         sheet["J7"].font = Font(bold=True)
 
-        unit_tons_formula = "A57/E9"
-
-        sheet["J8"] = (
-            f'=IF({unit_tons_formula}<=0.75,0.75,'
-            f'IF({unit_tons_formula}<=1,1,'
-            f'IF({unit_tons_formula}<=1.25,1.25,'
-            f'IF({unit_tons_formula}<=1.5,1.5,'
-            f'IF({unit_tons_formula}<=2,2,'
-            f'IF({unit_tons_formula}<=3,3,'
-            f'IF({unit_tons_formula}<=4,4,'
-            f'IF({unit_tons_formula}<=5,5,'
-            f'IF({unit_tons_formula}<=6,6,'
-            f'IF({unit_tons_formula}<=7.5,7.5,'
-            f'IF({unit_tons_formula}<=8.5,8.5,'
-            f'IF({unit_tons_formula}<=10,10,'
-            f'IF({unit_tons_formula}<=12.5,12.5,'
-            f'IF({unit_tons_formula}<=15,15,'
-            f'IF({unit_tons_formula}<=17.5,17.5,'
-            f'IF({unit_tons_formula}<=20,20,'
-            f'IF({unit_tons_formula}<=25,25,'
-            f'IF({unit_tons_formula}<=27.5,27.5,'
-            f'{unit_tons_formula}))))))))))))))))))'
-        )
+        # J8 (Unit Size) depends on the Tons engineering-check cell,
+        # whose row is not known until the load table is built below.
+        # It is written after the Engineering Checks section.
 
         # Create a unit size cell based on data
         sheet["J10"] = "Design CFM"
@@ -756,6 +796,42 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
         )
 
         row += 2
+        # endregion
+
+        # ======================================
+        # region Heating Conditions
+        # ======================================
+
+        # Parallel block to Cooling Conditions, placed in columns G-H
+        # (rows 7-10) so it sits above the heating load columns without
+        # shifting the cooling load table.
+
+        heating_header_cell = sheet.cell(
+            row=7,
+            column=7,
+            value="Heating Conditions"
+        )
+        heating_header_cell.font = Font(bold=True)
+        heating_header_cell.fill = PatternFill(
+            fill_type="solid",
+            fgColor="DDDDDD"
+        )
+        sheet.merge_cells(
+            start_row=7,
+            start_column=7,
+            end_row=7,
+            end_column=8
+        )
+
+        sheet.cell(row=8, column=7, value="Peak Time")
+        sheet.cell(row=8, column=8, value=heat.heating_design_time)
+
+        sheet.cell(row=9, column=7, value="Outside Air DB")
+        sheet.cell(row=9, column=8, value=heat.heating_oa_db_f)
+
+        sheet.cell(row=10, column=7, value="Outside Air WB")
+        sheet.cell(row=10, column=8, value=heat.heating_oa_wb_f)
+        # endregion
 
         # ======================================
         # Loads Header
@@ -765,7 +841,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             add_section_header(
                 sheet,
                 row,
-                "Cooling Loads"
+                "Cooling Loads",
+                end_column=8
             )
         )
 
@@ -775,7 +852,9 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             "Latent",
             "Total Load",
             "% Total Load",
-            "Details"
+            "Details",
+            "Heating Sensible",
+            "% Total Heat Load"
         ]
         row = add_table_column_titles(sheet, row, titles)
 
@@ -791,7 +870,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
         row = add_section_header(
             sheet,
             row,
-            "Envelope Loads"
+            "Envelope Loads",
+            end_column=8
         )
 
         # Keep track of starting row for percentage formatting
@@ -804,7 +884,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.wall_btu,
             None,
             heat.wall_sqft,
-            "sqft"
+            "sqft",
+            heating_sensible=heat.wall_heating_sensible_btu
         )
 
         row = add_load_row(
@@ -814,7 +895,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.roof_btu,
             None,
             heat.roof_sqft,
-            "sqft"
+            "sqft",
+            heating_sensible=heat.roof_heating_sensible_btu
         )
 
         row = add_load_row(
@@ -824,7 +906,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.window_btu,
             None,
             heat.window_sqft,
-            "sqft"
+            "sqft",
+            heating_sensible=heat.window_heating_sensible_btu
         )
 
         row = add_load_row(
@@ -834,7 +917,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.skylight_btu,
             None,
             heat.skylight_sqft,
-            "sqft"
+            "sqft",
+            heating_sensible=heat.skylight_heating_sensible_btu
         )
 
         row = add_load_row(
@@ -844,8 +928,12 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.door_btu,
             None,
             heat.door_sqft,
-            "sqft"
+            "sqft",
+            heating_sensible=heat.door_heating_sensible_btu
         )
+
+        # Floor row is referenced by the Engineering Checks (floor area)
+        floor_row = row
 
         row = add_load_row(
             sheet,
@@ -854,7 +942,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.floor_btu,
             None,
             heat.floor_sqft,
-            "sqft"
+            "sqft",
+            heating_sensible=heat.floor_heating_sensible_btu
         )
 
         row = add_load_row(
@@ -864,7 +953,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.interior_wall_btu,
             None,
             heat.interior_wall_sqft,
-            "sqft"
+            "sqft",
+            heating_sensible=heat.interior_wall_heating_sensible_btu
         )
 
         row = add_load_row(
@@ -874,7 +964,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.ceiling_btu,
             None,
             heat.ceiling_sqft,
-            "sqft"
+            "sqft",
+            heating_sensible=heat.ceiling_heating_sensible_btu
         )
 
         end_row = row - 1
@@ -907,10 +998,14 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
         row = add_section_header(
             sheet,
             row,
-            "Internal Loads"
+            "Internal Loads",
+            end_column=8
         )
 
         start_row = row
+
+        # People row is referenced by the Engineering Checks (occupant count)
+        people_row = row
 
         row = add_load_row(
             sheet,
@@ -919,7 +1014,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.people_sensible_btu,
             heat.people_latent_btu,
             heat.people_count,
-            "people"
+            "people",
+            heating_sensible=heat.people_heating_sensible_btu
         )
 
         row = add_load_row(
@@ -978,7 +1074,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
         row = add_section_header(
             sheet,
             row,
-            "Equipment Loads"
+            "Equipment Loads",
+            end_column=8
         )
 
         start_row = row
@@ -990,7 +1087,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.overhead_lighting_btu,
             None,
             heat.overhead_lighting_watts,
-            "W"
+            "W",
+            heating_sensible=heat.overhead_lighting_heating_sensible_btu
         )
 
         row = add_load_row(
@@ -1000,7 +1098,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.task_lighting_btu,
             None,
             heat.task_lighting_watts,
-            "W"
+            "W",
+            heating_sensible=heat.task_lighting_heating_sensible_btu
         )
 
         row = add_load_row(
@@ -1010,7 +1109,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.equipment_btu,
             None,
             heat.equipment_watts,
-            "W"
+            "W",
+            heating_sensible=heat.equipment_heating_sensible_btu
         )
 
         end_row = row - 1
@@ -1043,7 +1143,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
         row = add_section_header(
             sheet,
             row,
-            "System / Airside Loads"
+            "System / Airside Loads",
+            end_column=8
         )
 
         start_row = row
@@ -1053,7 +1154,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             row,
             "Zone Conditioning",
             heat.zone_conditioning_sensible_btu,
-            heat.zone_conditioning_latent_btu
+            heat.zone_conditioning_latent_btu,
+            heating_sensible=heat.zone_conditioning_heating_sensible_btu
         )
 
         row = add_load_row(
@@ -1061,7 +1163,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             row,
             "Plenum Load",
             heat.plenum_load_sensible_btu,
-            heat.plenum_load_latent_btu
+            heat.plenum_load_latent_btu,
+            heating_sensible=heat.plenum_load_heating_sensible_btu
         )
 
         row = add_load_row(
@@ -1071,7 +1174,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.return_fan_sensible_btu,
             heat.return_fan_latent_btu,
             heat.return_fan_cfm,
-            "CFM"
+            "CFM",
+            heating_sensible=heat.return_fan_heating_sensible_btu
         )
 
         row = add_load_row(
@@ -1081,8 +1185,12 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.ventilation_sensible_btu,
             heat.ventilation_latent_btu,
             heat.ventilation_cfm,
-            "CFM"
+            "CFM",
+            heating_sensible=heat.ventilation_heating_sensible_btu
         )
+
+        # Supply Fan row is referenced by the Engineering Checks (supply CFM)
+        supply_fan_row = row
 
         row = add_load_row(
             sheet,
@@ -1091,7 +1199,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             heat.supply_fan_sensible_btu,
             heat.supply_fan_latent_btu,
             heat.return_fan_cfm,
-            "CFM"
+            "CFM",
+            heating_sensible=heat.supply_fan_heating_sensible_btu
         )
 
         row = add_load_row(
@@ -1099,7 +1208,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             row,
             "Zone Fan Coil Fans",
             heat.zone_fan_coils_sensible_btu,
-            heat.zone_fan_coils_latent_btu
+            heat.zone_fan_coils_latent_btu,
+            heating_sensible=heat.zone_fan_coils_heating_sensible_btu
         )
 
         end_row = row - 1
@@ -1135,7 +1245,8 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
         row = add_section_header(
             sheet,
             row,
-            "HAP Totals"
+            "HAP Totals",
+            end_column=8
         )
 
         row = add_load_row(
@@ -1143,15 +1254,20 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             row,
             "Total System Loads",
             heat.total_system_sensible_btu,
-            heat.total_system_latent_btu
+            heat.total_system_latent_btu,
+            heating_sensible=heat.total_system_heating_sensible_btu
         )
+
+        # Central Cooling Coil row is the cooling grand-total reference
+        central_cooling_coil_row = row
 
         row = add_load_row(
             sheet,
             row,
             "Central Cooling Coil",
             heat.central_cooling_coil_sensible_btu,
-            heat.central_cooling_coil_latent_btu
+            heat.central_cooling_coil_latent_btu,
+            heating_sensible=heat.central_cooling_coil_heating_sensible_btu
         )
 
         row = add_load_row(
@@ -1159,15 +1275,20 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             row,
             "Central Heating Coil",
             heat.central_heating_coil_sensible_btu,
-            heat.central_heating_coil_latent_btu
+            heat.central_heating_coil_latent_btu,
+            heating_sensible=heat.central_heating_coil_heating_sensible_btu
         )
+
+        # Total Conditioning heating sensible is the heating % denominator
+        total_conditioning_row = row
 
         row = add_load_row(
             sheet,
             row,
             "Total Conditioning",
             heat.total_conditioning_sensible_btu,
-            heat.total_conditioning_latent_btu
+            heat.total_conditioning_latent_btu,
+            heating_sensible=heat.total_conditioning_heating_sensible_btu
         )
 
         end_row = row - 1
@@ -1183,28 +1304,42 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
         # Grand Total
         # ======================================
 
+        grand_total_row = row
+
         sheet.cell(
-            row=row,
+            row=grand_total_row,
             column=1,
             value="Grand Total"
         )
 
+        # Cooling grand total = Central Cooling Coil total load
         sheet.cell(
-            row=row,
+            row=grand_total_row,
             column=4,
-            value=f"=D{row - 3}"
+            value=f"=D{central_cooling_coil_row}"
+        )
+
+        # Heating grand total = Total Conditioning heating sensible
+        sheet.cell(
+            row=grand_total_row,
+            column=7,
+            value=f"=G{total_conditioning_row}"
         )
 
         sheet[
-            f"A{row}"
+            f"A{grand_total_row}"
         ].font = Font(bold=True)
 
         sheet[
-            f"D{row}"
+            f"D{grand_total_row}"
+        ].font = Font(bold=True)
+
+        sheet[
+            f"G{grand_total_row}"
         ].font = Font(bold=True)
 
         # ======================================
-        # % Total Formulas
+        # % Total Formulas (cooling + heating)
         # ======================================
 
         for percent_row in percent_rows:
@@ -1219,12 +1354,23 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
             ):
                 continue
 
+            # Cooling % of grand total load (column E)
             sheet.cell(
                 row=percent_row,
                 column=5,
                 value=(
                     f"=D{percent_row}"
-                    f"/D{row}"
+                    f"/D{grand_total_row}"
+                )
+            )
+
+            # Heating % of total conditioning heating sensible (column H)
+            sheet.cell(
+                row=percent_row,
+                column=8,
+                value=(
+                    f"=G{percent_row}"
+                    f"/G{total_conditioning_row}"
                 )
             )
 
@@ -1249,42 +1395,79 @@ def export_system_checksums(systems: dict[str, AirSystem], output_directory: str
         ]
         row = add_table_column_titles(sheet, row, titles)
 
-        # Tons
+        # This row holds the engineering-check values; the Tons cell
+        # (A{tons_row}) is also referenced by the Nerfs Unit Size formula.
+        tons_row = row
+
+        # Tons = grand total load / 12,000 BTU per ton
         sheet.cell(
-            row=row,
+            row=tons_row,
             column=1,
-            value=f"=D{row-4}/(12*1000)"
+            value=f"=D{grand_total_row}/(12*1000)"
         )
 
-        # cfm/ft^2
+        # cfm/ft^2 = supply airflow / floor area
         sheet.cell(
-            row=row,
+            row=tons_row,
             column=2,
-            value=f"=F{row-13}/F21"
+            value=f"=F{supply_fan_row}/F{floor_row}"
         )
 
-        # cfm/ton
+        # cfm/ton = supply airflow / tons
         sheet.cell(
-            row=row,
+            row=tons_row,
             column=3,
-            value=f"=F{row-13}/A{row}"
+            value=f"=F{supply_fan_row}/A{tons_row}"
         )
 
-        # ft^2/ton
+        # ft^2/ton = floor area / tons
         sheet.cell(
-            row=row,
+            row=tons_row,
             column=4,
-            value=f"=F21/(A{row})"
+            value=f"=F{floor_row}/(A{tons_row})"
         )
 
         # No. People
         sheet.cell(
-            row=row,
+            row=tons_row,
             column=5,
-            value="=F27"
+            value=f"=F{people_row}"
+        )
+
+        # ======================================
+        # Nerfs Unit Size (deferred: needs the Tons cell)
+        # ======================================
+
+        unit_tons_formula = f"A{tons_row}/E9"
+
+        sheet["J8"] = (
+            f'=IF({unit_tons_formula}<=0.75,0.75,'
+            f'IF({unit_tons_formula}<=1,1,'
+            f'IF({unit_tons_formula}<=1.25,1.25,'
+            f'IF({unit_tons_formula}<=1.5,1.5,'
+            f'IF({unit_tons_formula}<=2,2,'
+            f'IF({unit_tons_formula}<=3,3,'
+            f'IF({unit_tons_formula}<=4,4,'
+            f'IF({unit_tons_formula}<=5,5,'
+            f'IF({unit_tons_formula}<=6,6,'
+            f'IF({unit_tons_formula}<=7.5,7.5,'
+            f'IF({unit_tons_formula}<=8.5,8.5,'
+            f'IF({unit_tons_formula}<=10,10,'
+            f'IF({unit_tons_formula}<=12.5,12.5,'
+            f'IF({unit_tons_formula}<=15,15,'
+            f'IF({unit_tons_formula}<=17.5,17.5,'
+            f'IF({unit_tons_formula}<=20,20,'
+            f'IF({unit_tons_formula}<=25,25,'
+            f'IF({unit_tons_formula}<=27.5,27.5,'
+            f'{unit_tons_formula}))))))))))))))))))'
         )
 
         format_sheet(sheet)
+
+        # Heating conditions OA values are plain numbers, not percentages
+        # (override the carpet percent-format applied to column H above).
+        for conditions_cell in ["H8", "H9", "H10"]:
+            sheet[conditions_cell].number_format = '#,##0'
 
         # ======================================
         # Engineering Check Formatting
